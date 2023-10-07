@@ -1,39 +1,8 @@
 AddCSLuaFile()
 
----@class EnvEvent
----@field name string
----@field args { placeholder: string, type: TypeSignature }[]
----@field constructor fun(ctx: RuntimeContext)?
----@field destructor fun(ctx: RuntimeContext)?
----@field listening table<Entity, boolean>
-
----@class EnvType
----@field name string
----@field id string
-
----@class EnvConstant: { name: string, type: TypeSignature, value: any }
-
----@class EnvOperator
----@field args TypeSignature[]
----@field returns TypeSignature[]
----@field op RuntimeOperator
----@field cost integer
-
----@class EnvFunction: EnvOperator
----@field attrs table<string, boolean|string>
----@field const boolean? # Whether the function can be overridden at runtime. Optimzation. Only present in user functions.
-
----@class EnvMethod: EnvFunction
----@field meta TypeSignature
-
----@class EnvLibrary
----@field Constants table<string, EnvConstant>
----@field Functions table<string, EnvFunction[]>
----@field Methods table<TypeSignature, table<string, EnvMethod[]>>
-
 E2Lib = {
 	Env = {
-		---@type EnvEvent[]
+		---@type { name: string, args: { [1]: string, [2]: string }[], constructor: fun(t: table)?, destructor: fun(t: table)?, listening: table<userdata, boolean> }
 		Events = {}
 	}
 }
@@ -44,7 +13,17 @@ local function checkargtype(argn, value, argtype)
 end
 
 -- -------------------------- Helper functions -----------------------------
+local unpack = unpack
 local IsValid = IsValid
+
+-- This functions should not be used in functions that tend to be used very often, as it is slower than getting the arguments manually.
+function E2Lib.getArguments(self, args)
+	local ret = {}
+	for i = 2, #args[7] + 1 do
+		ret[i - 1] = args[i][1](self, args[i])
+	end
+	return unpack(ret)
+end
 
 -- Backwards compatibility
 E2Lib.isnan = WireLib.isnan
@@ -65,9 +44,9 @@ function E2Lib.setSubMaterial(ent, index, material)
 	duplicator.StoreEntityModifier(ent, "submaterial", { ["SubMaterialOverride_"..index] = material })
 end
 
--- Returns a default e2 table instance.
+-- Returns a default e2 table.
 function E2Lib.newE2Table()
-	return { n = {}, ntypes = {}, s = {}, stypes = {}, size = 0 }
+	return {n={},ntypes={},s={},stypes={},size=0}
 end
 
 -- Returns a cloned table of the variable given if it is a table.
@@ -150,7 +129,6 @@ function E2Lib.splitType(args)
 		end
 		i = i + 1
 	end
-
 	return thistype, ret
 end
 
@@ -223,6 +201,11 @@ function E2Lib.getOwner(self, entity)
 	end
 
 	return nil
+end
+
+function E2Lib.abuse(ply)
+	ply:Kick("Be good and don't abuse -- sincerely yours, the E2")
+	error("abuse", 0)
 end
 
 -- This function gets replaced when CPPI is detected, see very end of this file
@@ -326,15 +309,12 @@ end
 -- usable error message. If not, then it's an error not caused by an error in
 -- user code, and so we dump a stack trace to the console to help debug it.
 function E2Lib.errorHandler(message)
-	if getmetatable(message) == E2Lib.Debug.Error then
-		return message
-	end
+	if string.match(message, " at line ") then return message end
 
 	print("Internal error - please report to https://github.com/wiremod/wire/issues")
 	print(message)
 	debug.Trace()
-
-	return E2Lib.Debug.Error.new("Internal error, see console for more details")
+	return "Internal error, see console for more details"
 end
 
 E2Lib.optable_inv = {
@@ -420,38 +400,36 @@ local Keyword = {
 	Else = 3,
 	-- ``local``
 	Local = 4,
-	-- ``const``
-	Const = 5,
 	-- ``while``
-	While = 6,
+	While = 5,
 	-- ``for``
-	For = 7,
+	For = 6,
 	-- ``break``
-	Break = 8,
+	Break = 7,
 	-- ``continue``
-	Continue = 9,
+	Continue = 8,
 	-- ``switch``
-	Switch = 10,
+	Switch = 9,
 	-- ``case``
-	Case = 11,
+	Case = 10,
 	-- ``default``
-	Default = 12,
+	Default = 11,
 	-- ``foreach``
-	Foreach = 13,
+	Foreach = 12,
 	-- ``function``
-	Function = 14,
+	Function = 13,
 	-- ``return``
-	Return = 15,
+	Return = 14,
 	-- ``#include``
-	["#Include"] = 16,
+	["#Include"] = 15,
 	-- ``try``
-	Try = 17,
+	Try = 16,
 	-- ``catch``
-	Catch = 18,
+	Catch = 17,
 	-- ``do``
-	Do = 19,
+	Do = 18,
 	-- ``event``
-	Event = 20
+	Event = 19
 }
 
 E2Lib.Keyword = Keyword
@@ -578,7 +556,6 @@ local Operator = {
 
 E2Lib.Operator = Operator
 
----@type table<Operator, string>
 local OperatorNames = {}
 for name, val in pairs(Operator) do
 	OperatorNames[val] = name
@@ -609,21 +586,10 @@ end
 
 E2Lib.OperatorChars = OperatorChars
 
-E2Lib.blocked_array_types = { -- todo: fix casing
+E2Lib.blocked_array_types = {
 	["t"] = true,
 	["r"] = true,
 	["xgt"] = true
-}
-
---- Types that will trigger their I/O connections on assignment/index change.
-E2Lib.IOTableTypes = {
-	ARRAY = true, ["r"] = true,
-	TABLE = true, ["t"] = true,
-	VECTOR = true, ["v"] = true,
-	VECTOR2 = true, ["xv2"] = true,
-	VECTOR4 = true, ["xv4"] = true,
-	ANGLE = true, ["a"] = true,
-	QUATERNION = true, ["q"] = true
 }
 
 -- ------------------------------ string stuff ---------------------------------
@@ -637,6 +603,47 @@ function E2Lib.limitString(text, length)
 		return text
 	else
 		return string.sub(text, 1, length) .. "..."
+	end
+end
+
+do
+	local enctbl = {}
+	local dectbl = {}
+
+	do
+		-- generate encode/decode lookup tables
+		-- local valid_chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890 +-*/#^!?~=@&|.,:(){}[]<>" -- list of "normal" chars that can be transferred without problems
+		local invalid_chars = "'\"\n\\%"
+		local hex = { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F' }
+
+
+		for i = 1, #invalid_chars do
+			local char = invalid_chars:sub(i, i)
+			enctbl[char] = true
+		end
+		for byte = 1, 255 do
+			dectbl[hex[(byte - byte % 16) / 16 + 1] .. hex[byte % 16 + 1]] = string.char(byte)
+			if enctbl[string.char(byte)] then
+				enctbl[string.char(byte)] = "%" .. hex[(byte - byte % 16) / 16 + 1] .. hex[byte % 16 + 1]
+			else
+				enctbl[string.char(byte)] = string.char(byte)
+			end
+		end
+
+		--for i = 1, #valid_chars do
+		--	local char = valid_chars:sub(i, i)
+		--	enctbl[char] = char
+		--end
+	end
+
+	-- escapes special characters
+	function E2Lib.encode(str)
+		return str:gsub(".", enctbl)
+	end
+
+	-- decodes escaped characters
+	function E2Lib.decode(encoded)
+		return encoded:gsub("%%(..)", dectbl)
 	end
 end
 
@@ -966,233 +973,63 @@ function E2Lib.isValidFileWritePath(path)
 	if ext then return file_extensions[string.lower(ext)] end
 end
 
---- Deprecated.
---- Superceded by RuntimeContext:forceThrow(msg) / RuntimeContext:throw(msg, default?)
----@deprecated
----@param message string
----@param level integer
----@param trace Trace
----@param can_catch boolean?
-function E2Lib.raiseException(message, level, trace, can_catch)
-	error(E2Lib.Debug.Error.new(
-		message,
-		trace,
-		{ catchable = (can_catch == nil) and true or can_catch }
-	), level)
+-- Different from Context:throw, which does not error the chip if
+-- @strict is not enabled and instead returns a default value.
+-- This is what Context:throw calls internally if @strict
+-- By default E2 can catch these errors.
+function E2Lib.raiseException(msg, level, trace, can_catch)
+	error({
+		catchable = (can_catch == nil) and true or can_catch,
+		msg = msg,
+		trace = trace
+	}, level)
 end
 
 --- Unpacks either an exception object as seen above or an error string.
----@param struct string|Error
 ---@return boolean catchable
----@return string message
----@return Trace? trace
+---@return string msg
+---@return TokenTrace? trace
 function E2Lib.unpackException(struct)
-	if type(struct) == "string" then
+	if isstring(struct) then
 		return false, struct, nil
 	end
-	return struct.userdata and struct.userdata.catchable or false, struct.message, struct.trace
+	return struct.catchable, struct.msg, struct.trace
 end
 
----@class RuntimeScope: table<string, any>
----@field vclk table<string, boolean>
----@field parent RuntimeScope?
 
---- Context of an Expression 2 at runtime.
----@class RuntimeContext
----
----@field Scope RuntimeScope
----@field Scopes RuntimeScope[]
----@field ScopeID integer
----@field GlobalScope RuntimeScope | { lookup: table }
----
----@field prf integer
----@field prfcount integer
----@field prfbench integer
----
----@field time integer
----@field timebench integer
----
----@field entity userdata
----@field player userdata
----@field uid integer
----
----@field trace Trace
----@field __break__ boolean
----@field __continue__ boolean
----@field __return__ boolean
----@field __returnval__ any
----
----@field funcs table<string, RuntimeOperator>
----@field funcs_ret table<string, string> # dumb stringcall thing delete soon please
----@field includes table
----
----@field data table # Userdata
----@field throw fun(self: RuntimeContext, msg: string, value: any?)
-local RuntimeContext = {}
-RuntimeContext.__index = RuntimeContext
-
-function RuntimeContext:__tostring()
-	return "RuntimeContext"
-end
-
-E2Lib.RuntimeContext = RuntimeContext
-
----@class RuntimeContextBuilder: RuntimeContext
-local RuntimeContextBuilder = {}
-RuntimeContextBuilder.__index = RuntimeContextBuilder
-
----@return RuntimeContextBuilder
-function RuntimeContext.builder()
-	local global = { vclk = {}, lookup = {}, parent = nil }
-	return setmetatable({
-		GlobalScope = global,
-		Scopes = { [0] = global },
-		ScopeID = 0,
-		Scope = global,
-
+--- Mimics an E2 Context as if it were really on an entity.
+--- This code can probably be deduplicated but that'd needlessly complicate things, and I've made this compact enough.
+---@param owner GEntity? # Owner, or assumes world
+---@return ScopeManager? # Context or nil if failed
+local function makeContext(owner)
+	local ctx = setmetatable({
+		data = {}, vclk = {}, funcs = {}, funcs_ret = {},
+		entity = owner, player = owner, uid = IsValid(owner) and owner:UniqueID() or "World",
 		prf = 0, prfcount = 0, prfbench = 0,
-		time = 0, timebench = 0, stackdepth = 0,
+		time = 0, timebench = 0, includes = {}
+	}, E2Lib.ScopeManager)
 
-		entity = game.GetWorld(), player = game.GetWorld(), uid = "World",
+	ctx:InitScope()
 
-		trace = nil, -- Should be set at runtime
-		__break__ = false, __continue__ = false, __return__ = false,
-
-		funcs = {}, funcs_ret = {}, includes = {}, data = {}
-	}, RuntimeContextBuilder)
-end
-
----@param ply userdata
-function RuntimeContextBuilder:withOwner(ply)
-	self.player = assert(ply)
-	self.uid = (self.player.UniqueID and self.player:UniqueID()) or "World"
-	return self
-end
-
----@param chip userdata
-function RuntimeContextBuilder:withChip(chip)
-	self.entity = assert(chip)
-	return self
-end
-
----@param prf integer
----@param prfcount integer
----@param prfbench integer
-function RuntimeContextBuilder:withPrf(prf, prfcount, prfbench)
-	self.prf, self.prfcount, self.prfbench = assert(prf), assert(prfcount), assert(prfbench)
-	return self
-end
-
----@param time integer
----@param timebench integer
-function RuntimeContextBuilder:withTime(time, timebench)
-	self.time, self.timebench = assert(time), assert(timebench)
-	return self
-end
-
----@param functions table<string, RuntimeOperator>
----@param rets table<string, string>
-function RuntimeContextBuilder:withUserFunctions(functions, rets)
-	self.funcs = assert(functions)
-	self.funcs_ret = rets or self.funcs_ret
-	return self
-end
-
----@param includes table
-function RuntimeContextBuilder:withIncludes(includes)
-	self.includes = assert(includes)
-	return self
-end
-
----@param strict boolean?
-function RuntimeContextBuilder:withStrict(strict)
-	self.strict = strict == true
-	return self
-end
-
----@param inputs table<string, TypeSignature>
-function RuntimeContextBuilder:withInputs(inputs)
-	for k, v in pairs(inputs) do
-		self.GlobalScope[k] = E2Lib.fixDefault(wire_expression_types2[v][2])
-	end
-	return self
-end
-
----@param outputs table<string, TypeSignature>
-function RuntimeContextBuilder:withOutputs(outputs)
-	for k, v in pairs(outputs) do
-		self.GlobalScope[k] = E2Lib.fixDefault(wire_expression_types2[v][2])
-		self.GlobalScope.vclk[k] = true
-	end
-	return self
-end
-
----@param persists table<string, TypeSignature>
-function RuntimeContextBuilder:withPersists(persists)
-	for k, v in pairs(persists) do
-		self.GlobalScope[k] = E2Lib.fixDefault(wire_expression_types2[v][2])
-	end
-	return self
-end
-
---- Registers delta variables in the context.
---- **MUST** register all persists/inputs/outputs BEFORE calling this.
----@param vars table<string, boolean>
-function RuntimeContextBuilder:withDeltaVars(vars)
-	for k, _ in pairs(vars) do
-		self.GlobalScope["$" .. k] = self.GlobalScope[k]
-	end
-	return self
-end
-
----@return RuntimeContext
-function RuntimeContextBuilder:build()
-	if not self.strict then
-		function self:throw(_msg, variable)
-			return variable
-		end
+	-- Construct the context to run code.
+	-- If not done, 
+	local ok, why = pcall(wire_expression2_CallHook, "construct", ctx)
+	if not ok then
+		pcall(wire_expression2_CallHook, "destruct", ctx)
 	end
 
-	return setmetatable(self, RuntimeContext)
-end
-
-local DEF_USERDATA = { catchable = true }
-
---- If @strict, raises an error with message.
---- Otherwise, returns given value.
----@generic T
----@param message string
----@param _default T?
----@return T?
-function RuntimeContext:throw(message, _default)
-	local err = E2Lib.Debug.Error.new(message, self.trace, DEF_USERDATA)
-	error(err, 2)
-end
-
---- Same as RuntimeContext:throw, except always throws the error regardless of @strict being disabled.
-RuntimeContext.forceThrow = RuntimeContext.throw
-
-function RuntimeContext:PushScope()
-	local scope = { vclk = {} }
-	self.Scope, self.ScopeID = scope, self.ScopeID + 1
-	self.Scopes[self.ScopeID] = scope
-end
-
-function RuntimeContext:PopScope()
-	self.Scopes[self.ScopeID] = nil
-	self.ScopeID = self.ScopeID - 1
-	self.Scope = self.Scopes[self.ScopeID]
+	return ctx
 end
 
 --- Compiles an E2 script without an entity owning it.
 --- This doesn't have 1:1 behavior with an actual E2 chip existing, but is useful for testing.
 ---@param code string E2 Code to compile.
----@param owner userdata? 'Owner' entity, default world.
+---@param owner GEntity? 'Owner' entity, default world.
 ---@return boolean success If ran successfully
 ---@return string|function compiled Compiled function, or error message if not success
-function E2Lib.compileScript(code, owner)
+function E2Lib.compileScript(code, owner, run)
 	local status, directives, code = E2Lib.PreProcessor.Execute(code)
-	if not status then return false, directives end
+	if not status then return false, directives end -- Preprocessor failed.
 
 	local status, tokens = E2Lib.Tokenizer.Execute(code)
 	if not status then return false, tokens end
@@ -1200,17 +1037,23 @@ function E2Lib.compileScript(code, owner)
 	local status, tree, dvars = E2Lib.Parser.Execute(tokens)
 	if not status then return false, tree end
 
-	local status, script, inst = E2Lib.Compiler.Execute(tree, directives, dvars, {})
+	status,tree = E2Lib.Optimizer.Execute(tree)
+	if not status then return false, tree end
+
+	local status, script, inst = E2Lib.Compiler.Execute(tree, directives.inputs, directives.outputs, directives.persist, dvars, {})
 	if not status then return false, script end
 
-	local ctx = RuntimeContext.builder()
-		:withOwner(owner or game.GetWorld())
-		:withStrict(directives.strict)
-		:withInputs(directives.inputs[3])
-		:withOutputs(directives.outputs[3])
-		:withPersists(directives.persist[3])
-		:withDeltaVars(dvars)
-		:build()
+	local ctx = makeContext(owner or game.GetWorld())
+	if directives.strict then
+		local err = E2Lib.raiseException
+		function ctx:throw(msg)
+			err(msg, 2, self.trace)
+		end
+	else
+		function ctx:throw(_msg, variable)
+			return variable
+		end
+	end
 
 	return true, function(ctx2)
 		ctx = ctx2 or ctx
@@ -1224,10 +1067,9 @@ function E2Lib.compileScript(code, owner)
 			ctx.entity.GlobalScope, ctx.entity._vars = ctx.GlobalScope, ctx.GlobalScope
 		end
 
-		local success, why = pcall(wire_expression2_CallHook, "construct", ctx)
-		if success then
-			success, why = pcall( script, ctx )
-		end
+		ctx:PushScope()
+			local success, why = pcall( script[1], ctx, script )
+		ctx:PopScope()
 
 		-- Cleanup so hooks like runOnTick won't run after this call
 		pcall(wire_expression2_CallHook, "destruct", ctx)
@@ -1245,7 +1087,7 @@ function E2Lib.compileScript(code, owner)
 			local _, why, trace = E2Lib.unpackException(why)
 
 			if trace then
-				return false, "Runtime error: '" .. why .. "' at line " .. trace.start_line .. ", col " .. trace.start_col
+				return false, "Runtime error: '" .. why .. "' at line " .. trace[1] .. ", col " .. trace[2]
 			else
 				return false, why
 			end

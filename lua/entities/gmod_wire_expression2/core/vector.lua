@@ -2,6 +2,8 @@
 --  Vector support                                                            --
 --------------------------------------------------------------------------------
 
+local delta  = wire_expression2_delta
+
 local random = math.random
 local Vector = Vector
 local sqrt = math.sqrt
@@ -12,29 +14,6 @@ local atan2 = math.atan2
 local asin = math.asin
 local rad2deg = 180 / pi
 local deg2rad = pi / 180
-
--- Remove this when a later, mandatory update is made.
--- These were added in the August (08) 9 (09) 2023 (23) update
-if VERSION < 230809 then
-	function math.CubicBezier(frac, p0, p1, p2, p3)
-		local frac2 = frac * frac
-		local inv = 1 - frac
-		local inv2 = inv * inv
-
-		return inv2 * inv * p0 + 3 * inv2 * frac * p1 + 3 * inv * frac2 * p2 + frac2 * frac * p3
-	end
-
-	function math.QuadraticBezier(frac, p0, p1, p2)
-		local frac2 = frac * frac
-		local inv = 1 - frac
-		local inv2 = inv * inv
-
-		return inv2 * p0 + 2 * inv * frac * p1 + frac2 * p2
-	end
-end
-
-local quadraticBezier = math.QuadraticBezier
-local cubicBezier = math.CubicBezier
 
 -- TODO: add reflect?
 -- TODO: add absdotproduct?
@@ -47,7 +26,7 @@ registerType("vector", "v", Vector(0, 0, 0),
 	function(self, output) return Vector(output) end,
 	function(retval)
 		if isvector(retval) then return end
-		error("Return value is not a Vector, but a " .. type(retval) .. "!", 0)
+		error("Return value is not a Vector, but a "..type(retval).."!",0)
 	end,
 	function(v)
 		return not isvector(v)
@@ -91,13 +70,44 @@ end
 
 --------------------------------------------------------------------------------
 
-e2function number operator_is(vector this)
-	return this:IsZero() and 0 or 1
-end
+registerOperator("ass", "v", "v", function(self, args)
+	local lhs, op2, scope = args[2], args[3], args[4]
+	local      rhs = op2[1](self, op2)
+
+	local Scope = self.Scopes[scope]
+	local lookup = Scope.lookup
+	if !lookup then lookup = {} Scope.lookup = lookup end
+	if lookup[rhs] then lookup[rhs][lhs] = true else lookup[rhs] = {[lhs] = true} end
+
+	Scope[lhs] = rhs
+	Scope.vclk[lhs] = true
+	return rhs
+end)
 
 --------------------------------------------------------------------------------
 
-__e2setcost(1)
+e2function number vector:operator_is()
+	if this[1] > delta or -this[1] > delta or
+	   this[2] > delta or -this[2] > delta or
+	   this[3] > delta or -this[3] > delta
+	   then return 1 else return 0 end
+end
+
+e2function number vector:operator==( vector other )
+	if this[1] - other[1] <= delta and other[1] - this[1] <= delta and
+	   this[2] - other[2] <= delta and other[2] - this[2] <= delta and
+	   this[3] - other[3] <= delta and other[3] - this[3] <= delta
+	   then return 1 else return 0 end
+end
+
+e2function number vector:operator!=( vector other )
+	if this[1] - other[1] > delta or other[1] - this[1] > delta or
+	   this[2] - other[2] > delta or other[2] - this[2] > delta or
+	   this[3] - other[3] > delta or other[3] - this[3] > delta
+	   then return 1 else return 0 end
+end
+
+--------------------------------------------------------------------------------
 
 e2function vector operator_neg(vector v)
 	return -v
@@ -152,23 +162,14 @@ e2function vector operator/(vector lhs, vector rhs)
 	return Vector( lhs[1] / rhs[1], lhs[2] / rhs[2], lhs[3] / rhs[3] )
 end
 
-registerOperator("indexget", "vn", "n", function(state, this, index)
+e2function number vector:operator[](index)
 	return this[floor(math.Clamp(index, 1, 3) + 0.5)]
-end)
-
-registerOperator("indexset", "vnn", "", function(state, this, index, value)
-	this[floor(math.Clamp(index, 1, 3) + 0.5)] = value
-	state.GlobalScope.vclk[this] = true
-end)
-
-e2function string operator+(string lhs, vector rhs)
-	self.prf = self.prf + #lhs * 0.01
-	return lhs .. ("vec(%g,%g,%g)"):format(rhs[1], rhs[2], rhs[3])
 end
 
-e2function string operator+(vector lhs, string rhs)
-	self.prf = self.prf + #rhs * 0.01
-	return ("vec(%g,%g,%g)"):format(lhs[1], lhs[2], lhs[3]) .. rhs
+e2function number vector:operator[](index, value)
+	this[floor(math.Clamp(index, 1, 3) + 0.5)] = value
+	self.GlobalScope.vclk[this] = true
+	return value
 end
 
 --------------------------------------------------------------------------------
@@ -177,7 +178,7 @@ __e2setcost(10) -- temporary
 
 --- Returns a uniformly distributed, random, normalized direction vector.
 e2function vector randvec()
-	local s, a, x, y
+	local s,a, x,y
 
 	--[[
 	  This is a variant of the algorithm for computing a random point
@@ -228,34 +229,45 @@ end
 
 --------------------------------------------------------------------------------
 
-__e2setcost(2)
+__e2setcost(5)
 
 e2function number vector:length()
-	return this:Length()
+	return (this[1] * this[1] + this[2] * this[2] + this[3] * this[3]) ^ 0.5
 end
 
 e2function number vector:length2()
-	return this:LengthSqr()
+	return this[1] * this[1] + this[2] * this[2] + this[3] * this[3]
 end
 
 e2function number vector:distance(vector other)
-	return this:Distance(other)
+	local dx, dy, dz = this[1] - other[1], this[2] - other[2], this[3] - other[3]
+	return (dx * dx + dy * dy + dz * dz) ^ 0.5
 end
 
 e2function number vector:distance2( vector other )
-	return this:DistToSqr(other)
+	local dx, dy, dz = this[1] - other[1], this[2] - other[2], this[3] - other[3]
+	return dx * dx + dy * dy + dz * dz
 end
 
 e2function vector vector:normalized()
-	return this:GetNormalized()
+	local len = (this[1] * this[1] + this[2] * this[2] + this[3] * this[3]) ^ 0.5
+	if len > delta then
+		return Vector(this[1] / len, this[2] / len, this[3] / len )
+	else
+		return Vector(0, 0, 0)
+	end
 end
 
 e2function number vector:dot( vector other )
-	return this:Dot(other)
+	return this[1] * other[1] + this[2] * other[2] + this[3] * other[3]
 end
 
 e2function vector vector:cross( vector other )
-	return this:Cross(other)
+	return Vector(
+		this[2] * other[3] - this[3] * other[2],
+		this[3] * other[1] - this[1] * other[3],
+		this[1] * other[2] - this[2] * other[1]
+	)
 end
 
 __e2setcost(10)
@@ -500,15 +512,19 @@ end
 
 --- Mix two vectors by a given proportion (between 0 and 1)
 e2function vector mix(vector vec1, vector vec2, ratio)
-	return vec1 * ratio + vec2 * (1 - ratio)
+	return Vector(
+		vec1[1] * ratio + vec2[1] * (1-ratio),
+		vec1[2] * ratio + vec2[2] * (1-ratio),
+		vec1[3] * ratio + vec2[3] * (1-ratio)
+	)
 end
 
-e2function vector bezier(vector startVec, vector tangent, vector endVec, ratio)
-	return quadraticBezier(ratio, startVec, tangent, endVec)
-end
-
-e2function vector bezier(vector startVec, vector tangent1, vector tangent2, vector endVec, ratio)
-	return cubicBezier(ratio, startVec, tangent1, tangent2, endVec)
+e2function vector bezier(vector startVec, vector control, vector endVec, ratio)
+	return Vector(
+		(1-ratio)^2 * startVec[1] + (2 * (1-ratio) * ratio * control[1]) + ratio^2 * endVec[1],
+		(1-ratio)^2 * startVec[2] + (2 * (1-ratio) * ratio * control[2]) + ratio^2 * endVec[2],
+		(1-ratio)^2 * startVec[3] + (2 * (1-ratio) * ratio * control[3]) + ratio^2 * endVec[3]
+	)
 end
 
 __e2setcost(2)
@@ -567,11 +583,11 @@ local cache_concatenated_parts = setmetatable({ [0] = "empty" }, cachemeta)
 
 local function generateContents( n )
 	local parts_array, lookup_table = {}, {}
+	local ret = {}
 
-	for i = 0, 30 do
-		local v = bit.lshift(1, i)
-		if bit.band(n, v) ~= 0 then
-			local name = contents[v]
+	for i = 0,30 do
+		if bit.band(n, (2^i)) ~= 0 then
+			local name = contents[2^i]
 			lookup_table[name] = true
 			parts_array[#parts_array+1] = name
 		end
@@ -625,7 +641,7 @@ end
 
 --- Converts a local position/angle to a world position/angle and returns the angle
 e2function angle toWorldAng( vector localpos, angle localang, vector worldpos, angle worldang )
-	local _, ang = LocalToWorld(localpos, localang, worldpos, worldang)
+	local pos, ang = LocalToWorld(localpos, localang, worldpos, worldang)
 	return ang
 end
 
@@ -641,7 +657,7 @@ end
 
 --- Converts a world position/angle to a local position/angle and returns the angle
 e2function angle toLocalAng( vector localpos, angle localang, vector worldpos, angle worldang )
-	local _, ang = WorldToLocal(localpos, localang, worldpos, worldang)
+	local vec, ang = WorldToLocal(localpos,localang,worldpos,worldang)
 	return ang
 end
 
@@ -663,7 +679,7 @@ end
 e2function number elevation(vector originpos, angle originangle, vector pos)
 	pos = WorldToLocal(pos, ANG_ZERO, originpos, originangle)
 	local len = pos:Length()
-	if len < 0 then return 0 end
+	if (len < delta) then return 0 end
 	return rad2deg * asin(pos.z / len)
 end
 
@@ -673,7 +689,7 @@ e2function angle heading(vector originpos,angle originangle, vector pos)
 	local bearing = rad2deg*-atan2(pos.y, pos.x)
 
 	local len = pos:Length()
-	if len < 0 then return Angle(0, bearing, 0) end
+	if (len < delta) then return Angle(0, bearing, 0) end
 	return Angle(rad2deg*asin(pos.z / len), bearing, 0)
 end
 
@@ -688,8 +704,9 @@ end
 
 __e2setcost( 5 )
 
+--- Gets the vector nicely formatted as a string "[X,Y,Z]"
 e2function string toString(vector v)
-	return ("vec(%g,%g,%g)"):format(v[1], v[2], v[3])
+	return ("[%s,%s,%s]"):format(v[1],v[2],v[3])
 end
 
 --- Gets the vector nicely formatted as a string "[X,Y,Z]"

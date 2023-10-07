@@ -252,11 +252,69 @@ end
 -- Operators
 --------------------------------------------------------------------------------
 
+__e2setcost(5)
+
+registerOperator("ass", "t", "t", function(self, args)
+	local lhs, op2, scope = args[2], args[3], args[4]
+	local      rhs = op2[1](self, op2)
+
+	local Scope = self.Scopes[scope]
+	local lookup = Scope.lookup
+	if not lookup then lookup = {} Scope.lookup = lookup end
+	if lookup[rhs] then lookup[rhs][lhs] = true else lookup[rhs] = {[lhs] = true} end
+
+	Scope[lhs] = rhs
+	Scope.vclk[lhs] = true
+	return rhs
+end)
+
 __e2setcost(1)
 
-e2function number operator_is(table this)
-	return (this.size > 0) and 1 or 0
+e2function number operator_is( table tbl )
+	return (tbl.size > 0) and 1 or 0
 end
+
+e2function number operator==( table rv1, table rv2 )
+	return (rv1 == rv2) and 1 or 0
+end
+
+e2function number operator!=( table rv1, table rv2 )
+	return (rv1 ~= rv2) and 1 or 0
+end
+
+__e2setcost(nil)
+
+registerOperator( "kvtable", "", "t", function( self, args )
+	local ret = newE2Table()
+
+	local types = args[3]
+
+	local s, stypes, n, ntypes = {}, {}, {}, {}
+
+	local size = 0
+	for k,v in pairs( args[2] ) do
+		if not blocked_types[types[k]] then
+			local key = k[1]( self, k )
+
+			if isstring(key) then
+				s[key] = v[1]( self, v )
+				stypes[key] = types[k]
+			elseif isnumber(key) then
+				n[key] = v[1]( self, v )
+				ntypes[key] = types[k]
+			end
+			size = size + 1
+		end
+	end
+
+	self.prf = self.prf + size * opcost
+	ret.size = size
+	ret.s = s
+	ret.stypes = stypes
+	ret.n = n
+	ret.ntypes = ntypes
+	return ret
+end)
 
 --------------------------------------------------------------------------------
 -- Common functions
@@ -289,7 +347,7 @@ end
 
 -- Clones a table while adding prf for the size of the clone.
 local function prf_clone(self, tbl, lookup)
-	local copy, before = {}, collectgarbage("count")
+	local copy = {}
 
 	lookup = lookup or {}
 	lookup[tbl] = copy
@@ -314,11 +372,6 @@ local function prf_clone(self, tbl, lookup)
 			prf = prf + opcost -- simple assign operation
 			copy[k] = v
 		end
-	end
-
-	local mem = (collectgarbage("count") - before)
-	if mem > 0 then
-		self.prf = self.prf + mem * 20
 	end
 
 	self.prf = self.prf + prf
@@ -538,7 +591,6 @@ end
 __e2setcost(10)
 
 e2function table table:clone()
-	self.prf = self.prf + this.size * 2
 	return prf_clone(self, this)
 end
 
@@ -985,8 +1037,6 @@ registerCallback( "postinit", function()
 	for k,v in pairs( wire_expression_types ) do
 		local name = k
 		local id = v[1]
-		local default = v[2]
-		local typecheck = v[6]
 
 		if (not blocked_types[id]) then -- blocked check start
 
@@ -994,72 +1044,46 @@ registerCallback( "postinit", function()
 		-- Set/Get functions, t[index,type] syntax
 		--------------------------------------------------------------------------------
 
-		__e2setcost(3)
+		__e2setcost(5)
 
 		-- Getters
-		if typecheck then -- If there's a type check
-			registerOperator("indexget", "ts" .. id, id, function(self, tbl, key)
-				if not tbl.s[key] or tbl.stypes[key] ~= id then
-					return fixDefault(default)
-				end
-
-				if typecheck(tbl.s[key]) then
-					return fixDefault(default)
-				end
-
-				return tbl.s[key]
-			end)
-
-			registerOperator("indexget", "tn" .. id, id, function(self, tbl, key)
-				if not tbl.n[key] or tbl.ntypes[key] ~= id then
-					return fixDefault(default)
-				end
-
-				if typecheck(tbl.n[key]) then
-					return fixDefault(default)
-				end
-
-				return tbl.n[key]
-			end, 2)
-		else
-			registerOperator("indexget", "ts" .. id, id, function(self, tbl, key)
-				if not tbl.s[key] or tbl.stypes[key] ~= id then
-					return fixDefault(default)
-				end
-
-				return tbl.s[key]
-			end, 1)
-
-			registerOperator("indexget", "tn" .. id, id, function(self, tbl, key)
-				if not tbl.n[key] or tbl.ntypes[key] ~= id then
-					return fixDefault(default)
-				end
-
-				return tbl.n[key]
-			end, 1)
-		end
-
-		-- Setters
-		registerOperator("indexset", "ts" .. id , "", function(self, tbl, key, value)
-			if tbl.s[key] == nil and value ~= nil then
-				tbl.size = tbl.size + 1
-			elseif tbl.s[key] ~= nil and value == nil then
-				tbl.size = tbl.size - 1
-			end
-
-			tbl.s[key], tbl.stypes[key] = value, id
-			self.GlobalScope.vclk[tbl] = true
+		registerOperator("idx",	id.."=ts"		, id, function(self,args)
+			local op1, op2 = args[2], args[3]
+			local rv1, rv2 = op1[1](self, op1), op2[1](self, op2)
+			if (not rv1.s[rv2] or rv1.stypes[rv2] ~= id) then return fixDefault(v[2]) end
+			if (v[6] and v[6](rv1.s[rv2])) then return fixDefault(v[2]) end -- Type check
+			return rv1.s[rv2]
 		end)
 
-		registerOperator("indexset", "tn" .. id, "", function(self, tbl, key, value)
-			if tbl.n[key] == nil and value ~= nil then
-				tbl.size = tbl.size + 1
-			elseif tbl.n[key] ~= nil and value == nil then
-				tbl.size = tbl.size - 1
-			end
+		registerOperator("idx",	id.."=tn"		, id, function(self,args)
+			local op1, op2 = args[2], args[3]
+			local rv1, rv2 = op1[1](self, op1), op2[1](self, op2)
+			if (not rv1.n[rv2] or rv1.ntypes[rv2] ~= id) then return fixDefault(v[2]) end
+			if (v[6] and v[6](rv1.n[rv2])) then return fixDefault(v[2]) end -- Type check
+			return rv1.n[rv2]
+		end)
 
-			tbl.n[key], tbl.ntypes[key] = value, id
-			self.GlobalScope.vclk[tbl] = true
+		-- Setters
+		registerOperator("idx", id.."=ts"..id , id, function( self, args )
+			local op1, op2, op3, scope = args[2], args[3], args[4], args[5]
+			local rv1, rv2, rv3 = op1[1](self, op1), op2[1](self, op2), op3[1](self, op3)
+			if (rv1.s[rv2] == nil and rv3 ~= nil) then rv1.size = rv1.size + 1
+			elseif (rv1.n[rv2] ~= nil and rv3 == nil) then rv1.size = rv1.size - 1 end
+			rv1.s[rv2] = rv3
+			rv1.stypes[rv2] = id
+			self.GlobalScope.vclk[rv1] = true
+			return rv3
+		end)
+
+		registerOperator("idx", id.."=tn"..id, id, function(self,args)
+			local op1, op2, op3, scope = args[2], args[3], args[4], args[5]
+			local rv1, rv2, rv3 = op1[1](self, op1), op2[1](self, op2), op3[1](self, op3)
+			if (rv1.n[rv2] == nil and rv3 ~= nil) then rv1.size = rv1.size + 1
+			elseif (rv1.n[rv2] ~= nil and rv3 == nil) then rv1.size = rv1.size - 1 end
+			rv1.n[rv2] = rv3
+			rv1.ntypes[rv2] = id
+			self.GlobalScope.vclk[rv1] = true
+			return rv3
 		end)
 
 
@@ -1160,33 +1184,69 @@ registerCallback( "postinit", function()
 		--------------------------------------------------------------------------------
 		-- Foreach operators
 		--------------------------------------------------------------------------------
-		__e2setcost(0)
+		__e2setcost(nil)
 
-		local function iteri(tbl, i)
-			i = i + 1
-			local v = tbl.n[i]
-			if tbl.ntypes[i] == id then
-				return i, v
-			end
-		end
+		registerOperator("fea", "s" .. id .. "t", "", function(self, args)
+			local keyname, valname = args[2], args[3]
 
-		local next = next
-		local function iter(tbl, i)
-			local key, value = next(tbl.s, i)
-			if tbl.stypes[key] == id then
-				return key, value
-			end
-		end
+			local tbl = args[4]
+			tbl = tbl[1](self, tbl)
 
-		registerOperator("iter", "s" .. id .. "=t", "", function(state, table)
-			return function()
-				return iter, table
+			local statement = args[5]
+
+			for key, value in pairs(tbl.s) do
+				if tbl.stypes[key] == id then
+					self:PushScope()
+
+					self.prf = self.prf + 3
+
+					self.Scope.vclk[keyname] = true
+					self.Scope.vclk[valname] = true
+
+					self.Scope[keyname] = key
+					self.Scope[valname] = value
+
+					local ok, msg = pcall(statement[1], self, statement)
+
+					if not ok then
+						if msg == "break" then	self:PopScope() break
+						elseif msg ~= "continue" then self:PopScope() error(msg, 0) end
+					end
+
+					self:PopScope()
+				end
 			end
 		end)
 
-		registerOperator("iter", "n" .. id .. "=t", "", function(state, table)
-			return function()
-				return iteri, table, 0
+		registerOperator("fea", "n" .. id .. "t", "", function(self, args)
+			local keyname, valname = args[2], args[3]
+
+			local tbl = args[4]
+			tbl = tbl[1](self, tbl)
+
+			local statement = args[5]
+
+			for key, value in pairs(tbl.n) do
+				if tbl.ntypes[key] == id then
+					self:PushScope()
+
+					self.prf = self.prf + 3
+
+					self.Scope.vclk[keyname] = true
+					self.Scope.vclk[valname] = true
+
+					self.Scope[keyname] = key
+					self.Scope[valname] = value
+
+					local ok, msg = pcall(statement[1], self, statement)
+
+					if not ok then
+						if msg == "break" then	self:PopScope() break
+						elseif msg ~= "continue" then self:PopScope() error(msg, 0) end
+					end
+
+					self:PopScope()
+				end
 			end
 		end)
 
@@ -1200,7 +1260,7 @@ end)
 --------------------------------------------------------------------------------
 
 -- these postexecute and construct hooks handle changes to both tables and arrays.
-registerCallback("postexecute", function(self) --- @param self RuntimeContext
+registerCallback("postexecute", function(self)
 	local Scope = self.GlobalScope
 	local vclk, lookup = Scope.vclk, Scope.lookup
 
@@ -1230,6 +1290,16 @@ registerCallback("postexecute", function(self) --- @param self RuntimeContext
 	end
 end)
 
+local tbls = {
+	ARRAY = true,
+	TABLE = true,
+	VECTOR = true,
+	VECTOR2 = true,
+	VECTOR4 = true,
+	ANGLE = true,
+	QUATERNION = true,
+}
+
 registerCallback("construct", function(self)
 	local Scope = self.GlobalScope
 	Scope.lookup = {}
@@ -1237,7 +1307,7 @@ registerCallback("construct", function(self)
 	for k,v in pairs( Scope ) do
 		if k ~= "lookup" then
 			local datatype = self.entity.outports[3][k]
-			if (E2Lib.IOTableTypes[datatype]) then
+			if (tbls[datatype]) then
 				if (not Scope.lookup[v]) then Scope.lookup[v] = {} end
 				Scope.lookup[v][k] = true
 			end

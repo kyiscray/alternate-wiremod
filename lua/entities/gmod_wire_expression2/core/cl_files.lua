@@ -81,16 +81,16 @@ net.Receive("wire_expression2_request_file", function(netlen)
 	if file.Exists( fullpath,"DATA" ) and file.Size( fullpath, "DATA" ) <= (cv_max_transfer_size:GetInt() * 1024) then
 		local filedata = file.Read( fullpath,"DATA" ) or ""
 
-		local len = #filedata
+		local encoded = E2Lib.encode( filedata )
 
 		upload_buffer = {
 			chunk = 1,
-			chunks = math.ceil(len / upload_chunk_size),
-			data = filedata
+			chunks = math.ceil( string.len( encoded ) / upload_chunk_size ),
+			data = encoded
 		}
 
 		net.Start("wire_expression2_file_begin")
-			net.WriteUInt(len, 32)
+			net.WriteUInt(string.len(filedata), 32)
 		net.SendToServer()
 
 		timer.Create( "wire_expression2_file_upload", 1/60, upload_buffer.chunks, upload_callback )
@@ -138,13 +138,11 @@ net.Receive( "wire_expression2_request_list", function( netlen )
 		net.WriteUInt(#files + #folders, 16)
 		for _,fop in pairs(files) do
 			if string.GetExtensionFromFilename( fop ) == "txt" then
-				net.WriteUInt(#fop, 16)
-				net.WriteData(fop)
+				net.WriteString(E2Lib.encode( fop ))
 			end
 		end
 		for _,fop in pairs(folders) do
-			net.WriteUInt(#fop, 16)
-			net.WriteData(fop .. "/")
+			net.WriteString(E2Lib.encode( fop.."/" ))
 		end
 	net.SendToServer()
 end )

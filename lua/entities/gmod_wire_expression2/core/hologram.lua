@@ -282,12 +282,12 @@ local function flush_clip_queue(queue, recipient)
 						net.WriteUInt(Holo.ent:EntIndex(), 16)
 						net.WriteUInt(clip.index, 4) -- 4: absolute highest wire_holograms_max_clips is thus 16
 						if clip.enabled ~= nil then
-							net.WriteBool(true)
-							net.WriteBool(clip.enabled)
+							net.WriteBit(true)
+							net.WriteBit(clip.enabled)
 						elseif clip.origin and clip.normal and clip.localentid then
-							net.WriteBool(false)
+							net.WriteBit(false)
 							net.WriteVector(clip.origin)
-							net.WriteVector(clip.normal)
+							net.WriteFloat(clip.normal.x) net.WriteFloat(clip.normal.y) net.WriteFloat(clip.normal.z)
 							net.WriteUInt(clip.localentid, 16)
 						end
 					end
@@ -904,7 +904,7 @@ e2function vector holoBonePos(index, boneindex)
 	local Holo = CheckIndex(self, index)
 	if not Holo then return Vector(0, 0, 0) end
 	if not CheckBone(self, index, boneindex, Holo) then return Vector(0, 0, 0) end
-
+	
 	return Holo.ent:GetBoneMatrix(boneindex):GetTranslation()
 end
 
@@ -922,7 +922,7 @@ e2function angle holoBoneAng(index, boneindex)
 	local Holo = CheckIndex(self, index)
 	if not Holo then return Angle(0, 0, 0) end
 	if not CheckBone(self, index, boneindex, Holo) then return Angle(0, 0, 0) end
-
+	
 	return Holo.ent:GetBoneMatrix(boneindex):GetAngles()
 end
 
@@ -1055,13 +1055,6 @@ e2function void holoDisableShading( index, disable )
 	if not Holo then return end
 
 	Holo.ent:SetNWBool( "disable_shading", disable == 1 )
-end
-
-e2function void holoInvertModel( index, enable )
-	local Holo = CheckIndex(self, index)
-	if not Holo then return end
-
-	Holo.ent:SetNWInt("invert_model", enable ~= 0 and 1 or 0)
 end
 
 -- -----------------------------------------------------------------------------

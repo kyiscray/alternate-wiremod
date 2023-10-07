@@ -1,8 +1,8 @@
 DEFINE_BASECLASS("base_wire_entity")
 
 ENT.PrintName = "Wire Expression 2"
-ENT.Author = ""
-ENT.Contact = ""
+ENT.Author = "Syranide"
+ENT.Contact = "me@syranide.com"
 ENT.Purpose = ""
 ENT.Instructions = ""
 
@@ -15,10 +15,12 @@ CreateConVar("wire_expression2_quotatick", "25000", {FCVAR_REPLICATED})
 CreateConVar("wire_expression2_quotatime", "-1", {FCVAR_REPLICATED}, "Time in (ms) the e2 can consume before killing (-1 is infinite)")
 
 include("core/e2lib.lua")
-include("base/debug.lua")
+include("base/ast.lua")
 include("base/preprocessor.lua")
 include("base/tokenizer.lua")
 include("base/parser.lua")
-
+if SERVER then
+	include("base/optimizer.lua")
+end
 include("base/compiler.lua")
-include("core/init.lua")
+include('core/init.lua')

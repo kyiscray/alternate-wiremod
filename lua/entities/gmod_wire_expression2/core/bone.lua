@@ -35,27 +35,17 @@ function getBone(entity, index)
 	local bone = entity2bone[entity][index]
 	if not bone then
 		bone = entity:GetPhysicsObjectNum(index)
-		if not bone then return nil end
 		entity2bone[entity][index] = bone
-
-		bone2entity[bone] = entity
-		bone2index[bone] = index
 	end
+	if not bone then return nil end
+	if not bone:IsValid() then return nil end
 
-	return IsValid(bone) and bone or nil
+	bone2entity[bone] = entity
+	bone2index[bone] = index
+
+	return bone
 end
 E2Lib.getBone = getBone
-
-local function GetBones(entity)
-	if not entity2bone[entity] then
-		entity2bone[entity] = {}
-		for i = 0, entity:GetPhysicsObjectCount() - 1 do
-			getBone(entity, i)
-		end
-	end
-	return entity2bone[entity] or { }
-end
-E2Lib.GetBones = GetBones
 
 local function removeBone(bone)
 	bone2entity[bone] = nil
@@ -94,8 +84,27 @@ registerType("bone", "b", nil,
 __e2setcost(1)
 
 --- if (B)
-e2function number operator_is(bone this)
-	return isValidBone(this) and 1 or 0
+e2function number operator_is(bone b)
+	if isValidBone(b) then return 1 else return 0 end
+end
+
+--- B = B
+registerOperator("ass", "b", "b", function(self, args)
+	local op1, op2, scope = args[2], args[3], args[4]
+	local      rv2 = op2[1](self, op2)
+	self.Scopes[scope][op1] = rv2
+	self.Scopes[scope].vclk[op1] = true
+	return rv2
+end)
+
+--- B == B
+e2function number operator==(bone lhs, bone rhs)
+	if lhs == rhs then return 1 else return 0 end
+end
+
+--- B != B
+e2function number operator!=(bone lhs, bone rhs)
+	if lhs ~= rhs then return 1 else return 0 end
 end
 
 --[[************************************************************************]]--
@@ -111,8 +120,13 @@ end
 
 --- Returns an array containing all of <this>'s bones. This array's first element has the index 0!
 e2function array entity:bones()
-	if not IsValid(this) then return { } end
-	return GetBones(this)
+	if not IsValid(this) then return {} end
+	local ret = {}
+	local maxn = this:GetPhysicsObjectCount()-1
+	for i = 0,maxn do
+		ret[i] = getBone(this, i)
+	end
+	return ret
 end
 
 --- Returns <this>'s number of bones.
@@ -241,7 +255,7 @@ e2function number bone:elevation(vector pos)
 	pos = this:WorldToLocal(Vector(pos[1],pos[2],pos[3]))
 
 	local len = pos:Length()
-	if len < 0 then return 0 end
+	if len < delta then return 0 end
 	return rad2deg*asin(pos.z / len)
 end
 
@@ -256,7 +270,7 @@ e2function angle bone:heading(vector pos)
 
 	-- elevation
 	local len = pos:Length()--sqrt(x*x + y*y + z*z)
-	if len < 0 then return Angle(0, bearing, 0) end
+	if len < delta then return Angle(0, bearing, 0) end
 	local elevation = rad2deg*asin(pos.z / len)
 
 	return Angle(elevation, bearing, 0)

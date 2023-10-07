@@ -2,8 +2,6 @@ local function Update(self,this)
 	self.data.EGP.UpdatesNeeded[this] = true
 end
 
-local getCenterFromPos = EGP.ParentingFuncs.getCenterFromPos
-
 --------------------------------------------------------
 -- Frames
 --------------------------------------------------------
@@ -71,6 +69,7 @@ end
 
 e2function void wirelink:egpOrder( number index, number order )
 	if (!EGP:IsAllowed( self, this )) then return end
+	if (index == order) then return end
 	local bool, k, v = EGP:HasObject( this, index )
 	if (bool) then
 		local bool2 = EGP:SetOrder( this, k, order )
@@ -246,7 +245,6 @@ end
 ----------------------------
 e2function void wirelink:egpFont( number index, string font )
 	if (!EGP:IsAllowed( self, this )) then return end
-	if #font > 30 then return self:throw("Font string is too long!", nil) end
 	local bool, k, v = EGP:HasObject( this, index )
 	if (bool) then
 		if (EGP:EditObject( v, { font = font } )) then EGP:DoAction( this, self, "SendObject", v ) Update(self,this) end
@@ -255,7 +253,6 @@ end
 
 e2function void wirelink:egpFont( number index, string font, number size )
 	if (!EGP:IsAllowed( self, this )) then return end
-	if #font > 30 then return self:throw("Font string is too long!", nil) end
 	local bool, k, v = EGP:HasObject( this, index )
 	if (bool) then
 		if (EGP:EditObject( v, { font = font, size = size } )) then EGP:DoAction( this, self, "SendObject", v ) Update(self,this) end
@@ -606,8 +603,7 @@ e2function void wirelink:egpPos( number index, vector2 pos )
 	if (!EGP:IsAllowed( self, this )) then return end
 	local bool, k, v = EGP:HasObject( this, index )
 	if (bool) then
-		local x, y = pos[1], pos[2]
-		if (EGP:EditObject( v, { x = x, y = y, _x = x, _y = y } )) then EGP:DoAction( this, self, "SendObject", v ) Update(self,this) end
+		if (EGP:EditObject( v, { x = pos[1], y = pos[2] } )) then EGP:DoAction( this, self, "SendObject", v ) Update(self,this) end
 	end
 end
 
@@ -619,7 +615,7 @@ e2function void wirelink:egpAngle( number index, number angle )
 	if (!EGP:IsAllowed( self, this )) then return end
 	local bool, k, v = EGP:HasObject( this, index )
 	if (bool) then
-		if (EGP:EditObject( v, { angle = angle, _angle = angle } )) then EGP:DoAction( this, self, "SendObject", v ) Update(self,this) end
+		if (EGP:EditObject( v, { angle = angle } )) then EGP:DoAction( this, self, "SendObject", v ) Update(self,this) end
 	end
 end
 
@@ -640,8 +636,8 @@ e2function void wirelink:egpAngle( number index, vector2 worldpos, vector2 axisp
 
 			angle = -ang.yaw
 
-			local t = { x = x, _x = x, y = y, _y = y }
-			if (v.angle) then t.angle, t._angle = angle, angle end
+			local t = { x = x, y = y }
+			if (v.angle) then t.angle = angle end
 
 			if (EGP:EditObject( v, t )) then EGP:DoAction( this, self, "SendObject", v ) Update(self,this) end
 		end
@@ -819,15 +815,16 @@ end
 __e2setcost(20)
 e2function vector wirelink:egpGlobalPos( number index )
 	local hasvertices, posang = EGP:GetGlobalPos( this, index )
-	if hasvertices then
-		local x, y = getCenterFromPos(posang)
-		return Vector(x , y, 0)
+	if (!hasvertices) then
+		return Vector( posang.x, posang.y, posang.angle )
 	end
-	return Vector(posang.x, posang.y, posang.angle)
+	return Vector(0, 0, 0)
 end
 
 e2function array wirelink:egpGlobalVertices( number index )
+	ErrorNoHalt = override
 	local hasvertices, data = EGP:GetGlobalPos( this, index )
+	ErrorNoHalt = olderror
 	if (hasvertices) then
 		if (data.vertices) then
 			local ret = {}
@@ -909,8 +906,13 @@ e2function number wirelink:egpAngle( number index )
 end
 
 e2function string wirelink:egpMaterial( number index )
-	local bool, _, v = EGP:HasObject( this, index )
-	return bool and v.material and tostring(v.material) or ""
+	local bool, k, v = EGP:HasObject( this, index )
+	if (bool) then
+		if (v.material) then
+			return v.material
+		end
+	end
+	return ""
 end
 
 e2function number wirelink:egpRadius( number index )
@@ -1031,12 +1033,10 @@ e2function number wirelink:egpHasObject( index )
 	return bool and 1 or 0
 end
 
-__e2setcost(20)
-
 --- Returns 1 if the object with specified index contains the specified point.
 e2function number wirelink:egpObjectContainsPoint(number index, vector2 point)
 	local _, _, object = EGP:HasObject(this, index)
-	return object and object:Contains(this, point[1], point[2]) and 1 or 0
+	return object and object:Contains({x = point[1], y = point[2]}) and 1 or 0
 end
 
 __e2setcost(10)
@@ -1135,38 +1135,11 @@ end
 local antispam = {}
 __e2setcost(25)
 e2function void wirelink:egpHudToggle()
-	if not EGP:ValidEGP(this) then return self:throw("Invalid wirelink!", nil) end
+	if not EGP:ValidEGP( this ) then return self:throw("Invalid wirelink!", nil) end
 	if antispam[self.player] and antispam[self.player] > CurTime() then return end
 	antispam[self.player] = CurTime() + 0.1
-
-	timer.Simple(0, function()
-		EGP.EGPHudConnect(this, not (this.Users ~= nil and this.Users[self.player] ~= nil), self.player)
-	end)
+	umsg.Start( "EGP_HUD_Use", self.player ) umsg.Entity( this ) umsg.End()
 end
-
-e2function void wirelink:egpHudEnable(enable)
-	if not EGP:ValidEGP(this) then return self:throw("Invalid wirelink!", nil) end
-	if antispam[self.player] and antispam[self.player] > CurTime() then return end
-	antispam[self.player] = CurTime() + 0.1
-
-	timer.Simple(0, function()
-		EGP.EGPHudConnect(this, enable ~= 0, self.player)
-	end)
-end
-
-e2function array wirelink:egpConnectedUsers()
-	if not EGP:ValidEGP(this) then return self:throw("Invalid wirelink!", nil) end
-	if not this.Users then return {} end
-
-	local sanitised_array, i = {}, 0
-	for k, _ in pairs(this.Users) do
-		i = i + 1
-		sanitised_array[i] = k
-	end
-	return sanitised_array
-end
-
-E2Lib.registerEvent("egpHudConnect", { { "Screen", "xwl" }, { "Player", "e" }, { "Connected", "n" } })
 
 --------------------------------------------------------
 -- Useful functions

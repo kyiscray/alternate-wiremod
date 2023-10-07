@@ -5,13 +5,16 @@ AddCSLuaFile()
   Andreas "Syranide" Svensson, me@syranide.com
 ]]
 
+wire_expression2_delta = 0.0000001000000
+delta = wire_expression2_delta
+
 -- functions to type-check function return values.
 
 local wire_expression2_debug = CreateConVar("wire_expression2_debug", 0, 0)
 
 if SERVER then
 	cvars.AddChangeCallback("wire_expression2_debug", function(CVar, PreviousValue, NewValue)
-		if PreviousValue == NewValue then return end
+		if (PreviousValue) == NewValue then return end
 		wire_expression2_reload()
 	end)
 end
@@ -44,7 +47,7 @@ local function makecheck(signature)
 	if signature == "op:seq()" then return end
 	local name = signature:match("^([^(]*)")
 	local entry = wire_expression2_funcs[signature]
-	local oldfunc, signature, rets, func = entry.oldfunc, unpack(entry)
+	local oldfunc, signature, rets, func, cost = entry.oldfunc, unpack(entry)
 
 	if oldfunc then return end
 	oldfunc = namefunc(func, "e2_" .. name)
@@ -94,15 +97,8 @@ local function isValidTypeId(id)
 	return #id == (string.sub(id, 1, 1) == "x" and 3 or 1)
 end
 
----@generic T
----@param name string
----@param id string
----@param def T | nil
----@param input_serialize (fun(self, input: any): T)?
----@param output_serialize (fun(self, output: any): T)?
----@param type_check (fun(v: any))?
----@param is_invalid (fun(v: any): boolean)?
-function registerType(name, id, def, input_serialize, output_serialize, type_check, is_invalid, ...)
+-- additional args: <input serializer>, <output serializer>, <type checker>
+function registerType(name, id, def, ...)
 	if not isValidTypeId(id) then
 		-- this type ID format is relied on in various places including
 		-- E2Lib.splitType, and malformed type IDs cause confusing and subtle
@@ -111,25 +107,10 @@ function registerType(name, id, def, input_serialize, output_serialize, type_che
 		"character long, or three characters long starting with an x", id), 2)
 	end
 
-	wire_expression_types[string.upper(name)] = { id, def, input_serialize, output_serialize, type_check, is_invalid, ... }
-	wire_expression_types2[id] = { string.upper(name), def, input_serialize, output_serialize, type_check, is_invalid, ... }
-
+	wire_expression_types[string.upper(name)] = { id, def, ... }
+	wire_expression_types2[id] = { string.upper(name), def, ... }
 	if not WireLib.DT[string.upper(name)] then
-		WireLib.DT[string.upper(name)] = {
-			Zero = istable(def) and function()
-				-- Don't need to handle Vector or Angle case since WireLib.DT already defines them.
-				return table.Copy(def)
-			end or function()
-				-- If not a table, don't need to run table.Copy.
-				return def
-			end,
-
-			Validator = is_invalid and function(v)
-				return not is_invalid(v)
-			end or function()
-				return true
-			end
-		}
+		WireLib.DT[string.upper(name)] = { Zero = def }
 	end
 end
 
@@ -154,8 +135,7 @@ end
 
 function E2Lib.registerCallback(event, callback)
 	if not wire_expression_callbacks[event] then wire_expression_callbacks[event] = {} end
-	local currExt = E2Lib.currentextension
-	table.insert(wire_expression_callbacks[event], function(a, b, c, d, e, f) E2Lib.currentextension = currExt return callback(a, b, c, d, e, f) end)
+	table.insert(wire_expression_callbacks[event], callback)
 end
 
 registerCallback = E2Lib.registerCallback
@@ -170,70 +150,14 @@ function __e2getcost()
 	return tempcost
 end
 
----@param args string
----@return string?, table
-local function getArgumentTypeIds(args)
-	local thistype, nargs = args:match("^([^:]+):(.*)$")
-	if nargs then args = nargs end
-
-	local out, ptr = {}, 1
-	while ptr <= #args do
-		local c = args:sub(ptr, ptr)
-		if c == "x" then
-			out[#out + 1] = args:sub(ptr, ptr + 2)
-			ptr = ptr + 3
-		elseif args:sub(ptr) == "..." then
-			out[#out + 1] = "..."
-			ptr = ptr + 3
-		elseif c:match("^%w") then
-			out[#out + 1] = c
-			ptr = ptr + 1
-		else
-			error("Invalid signature: " .. args)
-		end
-	end
-
-	return thistype, out
-end
-
-local EnforcedTypings = {
-	["is"] = "n"
-}
-
----@param name string
----@param pars string
----@param rets string
----@param func fun(state: RuntimeContext, ...): any
----@param cost integer?
----@param argnames string[]?
----@param attributes table<string, string|boolean>?
-function registerOperator(name, pars, rets, func, cost, argnames, attributes)
-	if attributes and attributes.legacy == nil then
-		-- can explicitly mark "false" (used by extpp)
-		attributes.legacy = true
-	elseif not attributes then
-		attributes = { legacy = true }
-	end
-
-	local enforced = EnforcedTypings[name]
-	if enforced and rets ~= enforced then
-		error("Registering invalid operator '" .. name .. "' (must return type " .. enforced .. ")")
-	end
-
+function registerOperator(name, pars, rets, func, cost, argnames)
 	local signature = "op:" .. name .. "(" .. pars .. ")"
 
-	wire_expression2_funcs[signature] = { signature, rets, func, cost or tempcost, argnames = argnames, attributes = attributes }
+	wire_expression2_funcs[signature] = { signature, rets, func, cost or tempcost, argnames = argnames }
 	if wire_expression2_debug:GetBool() then makecheck(signature) end
 end
 
 function registerFunction(name, pars, rets, func, cost, argnames, attributes)
-	if attributes and attributes.legacy == nil then
-		-- can explicitly mark "false" (used by extpp)
-		attributes.legacy = true
-	elseif not attributes then
-		attributes = { legacy = true }
-	end
-
 	local signature = name .. "(" .. pars .. ")"
 
 	wire_expression2_funcs[signature] = { signature, rets, func, cost or tempcost, argnames = argnames, extension = E2Lib.currentextension, attributes = attributes }
@@ -242,8 +166,10 @@ function registerFunction(name, pars, rets, func, cost, argnames, attributes)
 	if wire_expression2_debug:GetBool() then makecheck(signature) end
 end
 
-function E2Lib.registerConstant(name, value)
+function E2Lib.registerConstant(name, value, literal)
 	if name:sub(1, 1) ~= "_" then name = "_" .. name end
+	if not value and not literal then value = _G[name] end
+
 	wire_expression2_constants[name] = value
 end
 
@@ -299,27 +225,11 @@ function E2Lib.triggerEvent(name, args)
 	assert(E2Lib.Env.Events[name], "E2Lib.triggerEvent on nonexisting event: '" .. name .. "'")
 
 	for ent in pairs(E2Lib.Env.Events[name].listening) do
+		-- wtf
 		if ent.ExecuteEvent then
 			ent:ExecuteEvent(name, args)
-		else -- Destructor somehow wasn't run?
+		else
 			E2Lib.Env.Events[name].listening[ent] = nil
-		end
-	end
-end
-
----@param name string
----@param args table
----@param ignore table<Entity, true>
-function E2Lib.triggerEventOmit(name, args, ignore)
-	assert(E2Lib.Env.Events[name], "E2Lib.triggerEventOmit on nonexisting event: '" .. name .. "'")
-
-	for ent in pairs(E2Lib.Env.Events[name].listening) do
-		if not ignore[ent] then -- Don't trigger ignored chips
-			if ent.ExecuteEvent then
-				ent:ExecuteEvent(name, args)
-			else -- Destructor somehow wasn't run?
-				E2Lib.Env.Events[name].listening[ent] = nil
-			end
 		end
 	end
 end
@@ -364,13 +274,12 @@ if SERVER then
 				}
 			end
 
-			local types = {}
-			for typename, v in pairs(wire_expression_types) do
-				types[typename] = v[1] -- typeid (s)
-			end
+			miscdata = { {}, wire_expression2_constants, events_sanitized }
 
-			miscdata = { types, wire_expression2_constants, events_sanitized }
 			functiondata = {}
+			for typename, v in pairs(wire_expression_types) do
+				miscdata[1][typename] = v[1] -- typeid (s)
+			end
 
 			for signature, v in pairs(wire_expression2_funcs) do
 				functiondata[signature] = { v[2], v[4], v.argnames, v.extension, v.attributes } -- ret (s), cost (n), argnames (t), extension (s), attributes (t)
@@ -471,7 +380,7 @@ elseif CLIENT then
 		end
 	end
 
-	---@param events table<string, {name: string, args: { placeholder: string, type: string }[]}>
+	---@param events table<string, {name: string, args: { [1]: string, [2]: string }[]}>
 	local function insertMiscData(types, constants, events)
 		wire_expression2_reset_extensions()
 
