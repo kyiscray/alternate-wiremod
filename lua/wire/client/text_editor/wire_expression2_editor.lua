@@ -1289,7 +1289,7 @@ function Editor:InitControlPanel(frame)
 	local DisableWarnings = vgui.Create("DCheckBoxLabel")
 	dlist:AddItem(DisableWarnings)
 	DisableWarnings:SetConVar("wire_expression2_disablewarnings")
-	DisableWarnings:SetText("Disable Warnings")
+	DisableWarnings:SetText("Disable warnings")
 	DisableWarnings:SizeToContents()
 	DisableWarnings:SetTooltip("Enable/disable warnings.")
 
