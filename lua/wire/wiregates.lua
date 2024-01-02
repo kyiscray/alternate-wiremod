@@ -55,3 +55,4 @@ local function UpdateBannedGates(reload_spawnmenu)
 end
 cvars.AddChangeCallback("wire_banned_gate_categories", function() UpdateBannedGates(true) end, "UpdateBannedGates")
 UpdateBannedGates(false)
+
