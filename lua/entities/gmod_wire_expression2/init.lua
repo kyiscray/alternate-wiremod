@@ -191,13 +191,16 @@ function ENT:Execute()
 	self:PCallHook('postexecute')
 
 	self:TriggerOutputs(forceTriggerOutputs)
-
+	
 	for k, v in pairs(self.inports[3]) do
 		if self.GlobalScope[k] then
-			if wire_expression_types[self.Inputs[k].Type][3] then
-				self.GlobalScope[k] = wire_expression_types[self.Inputs[k].Type][3](self.context, self.Inputs[k].Value)
-			else
-				self.GlobalScope[k] = self.Inputs[k].Value
+			--Gmod is a little baby and needs everything perfect doesn't it?
+			if self.Inputs then
+				if wire_expression_types[self.Inputs[k].Type][3] then
+					self.GlobalScope[k] = wire_expression_types[self.Inputs[k].Type][3](self.context, self.Inputs[k].Value)
+				else
+					self.GlobalScope[k] = self.Inputs[k].Value
+				end
 			end
 		end
 	end
