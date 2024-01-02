@@ -1,4 +1,0 @@
-## SHOULD_FAIL:COMPILE
-
-const Z = "Foo"
-A=Z="Y"

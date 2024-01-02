@@ -35,11 +35,8 @@ local draw_WordBox = draw.WordBox
 local draw_RoundedBox = draw.RoundedBox
 
 WireTextEditor = { Modes = {} }
-
-for _, filename in ipairs(file.Find("wire/client/text_editor/modes/*.lua","LUA")) do
-	include("wire/client/text_editor/modes/" .. filename)
-end
-
+include("modes/e2.lua")
+include("modes/zcpu.lua")
 WireTextEditor.Modes.Default = { SyntaxColorLine = function(self, row) return { { self.Rows[row], { Color(255, 255, 255, 255), false } } } end }
 
 local wire_expression2_autocomplete_controlstyle = CreateClientConVar( "wire_expression2_autocomplete_controlstyle", "0", true, false )
@@ -87,9 +84,6 @@ function EDITOR:Init()
 	self.LastClick = 0
 
 	self.e2fs_functions = {}
-	self.e2fs_methods = {}
-
-	self.e2_functionsig_lookup = {}
 
 	self.Colors = {
 		dblclickhighlight = Color(0, 100, 0),
@@ -332,7 +326,7 @@ function EDITOR:OnMouseReleased(code)
 end
 
 function EDITOR:SetText(text)
-	self.Rows = string_Explode("\r?\n", text, true)
+	self.Rows = string_Explode("\n", text)
 	if self.Rows[#self.Rows] ~= "" then
 		self.Rows[#self.Rows + 1] = ""
 	end
@@ -628,7 +622,7 @@ function EDITOR:Paint()
 	if self.MouseDown then
 		self.Caret = self:CursorToCaret()
 	end
-
+	
 	local backgroundColor = self:GetSyntaxColor("background")
 
 	surface_SetDrawColor(backgroundColor.r - 28,backgroundColor.g - 28,backgroundColor.b - 28)
@@ -807,7 +801,7 @@ function EDITOR:SetArea(selection, text, isundo, isredo, before, after)
 	end
 
 	-- insert text
-	local rows = string_Explode("\r?\n", text, true)
+	local rows = string_Explode("\n", text)
 
 	local remainder = string_sub(self.Rows[start[1]], start[2])
 	self.Rows[start[1]] = string_sub(self.Rows[start[1]], 1, start[2] - 1) .. rows[1]
@@ -2186,7 +2180,7 @@ end
 -- Adds all matching functions to the suggestions table
 --------------------
 
-local function GetTableForFunction(udf)
+local function GetTableForFunction()
 	return {
 		nice_str = function( t ) return t.data[2] end,
 			str = function( t ) return t.data[1] end,
@@ -2199,9 +2193,7 @@ local function GetTableForFunction(udf)
 				return ret..(has_bracket and "" or "()"), #ret+1
 			end,
 			others = function( t ) return t.data[3] end,
-			description = udf and function(t)
-				return "A userfunction\n"
-			end or function( t )
+			description = function( t )
 				if t.data[4] and E2Helper.Descriptions[t.data[4]] then
 					return E2Helper.Descriptions[t.data[4]]
 				end
@@ -2211,8 +2203,8 @@ local function GetTableForFunction(udf)
 			end,
 			data = {},
 
-			selected_color = udf and AC_COLOR_USERFUNCTION_SELECTED or AC_COLOR_FUNCTION_SELECTED,
-			color = udf and AC_COLOR_USERFUNCTION or AC_COLOR_FUNCTION
+			selected_color = AC_COLOR_FUNCTION_SELECTED,
+			color = AC_COLOR_FUNCTION
 		}
 end
 
@@ -2226,9 +2218,9 @@ local function FindFunctions( self, has_colon, word )
 	local suggested = {}
 	local suggestions = {}
 
-	local function handle(id, udf)
-		if wordl == id:lower():sub(1, len) then -- Check if the beginning of the word matches
-			local name, types = id:match( "(.+)(%b())" ) -- Get the function name and types
+	for func_id,_ in pairs( wire_expression2_funcs ) do
+		if wordl == func_id:lower():sub(1,len) then -- Check if the beginning of the word matches
+			local name, types = func_id:match( "(.+)(%b())" ) -- Get the function name and types
 			local first_type, colon, other_types = types:match( "%((%w*)(:?)(.*)%)" ) -- Sort the function types
 			if (colon == ":") == has_colon then -- If they both have colons (or not)
 				first_type = first_type:upper()
@@ -2239,12 +2231,12 @@ local function FindFunctions( self, has_colon, word )
 
 					-- Add to suggestions
 					if colon == ":" then
-						local t = GetTableForFunction(udf)
-						t.data = { name, first_type .. ":" .. name .. "(" .. other_types .. ")", {}, id }
+						local t = GetTableForFunction()
+						t.data = { name, first_type .. ":" .. name .. "(" .. other_types .. ")", {}, func_id }
 						suggestions[count] = t
 					else
-						local t = GetTableForFunction(udf)
-						t.data = { name, name .. "(" .. first_type .. ")", {}, id }
+						local t = GetTableForFunction()
+						t.data = { name, name .. "(" .. first_type .. ")", {}, func_id }
 						suggestions[count] = t
 					end
 				else -- If it has already been suggested
@@ -2254,27 +2246,18 @@ local function FindFunctions( self, has_colon, word )
 
 					-- Add it to the end of the list
 					if colon == ":" then
-						local t = GetTableForFunction(udf)
-						t.data = { name, first_type .. ":" .. name .. "(" .. other_types .. ")", nil, id }
+						local t = GetTableForFunction()
+						t.data = { name, first_type .. ":" .. name .. "(" .. other_types .. ")", nil, func_id }
 						others[i] = t
 					else
-						local t = GetTableForFunction(udf)
-						t.data = { name, name .. "(" .. first_type .. ")", nil, id }
+						local t = GetTableForFunction()
+						t.data = { name, name .. "(" .. first_type .. ")", nil, func_id }
 						others[i] = t
 					end
 				end
 			end
 		end
 	end
-
-	for id in pairs( wire_expression2_funcs ) do
-		handle(id)
-	end
-
-	for id in pairs( self.e2_functionsig_lookup ) do
-		handle(id, true)
-	end
-
 	return suggestions
 end
 
@@ -2433,7 +2416,7 @@ tbl.RunOnCheck = function( self )
 		local word = self:AC_GetCurrentWord()
 		if word and word:match("^%u") then
 			-- Writing a variable. Wait for user to stop writing to avoid calling the tokenizer a ton of times.
-			timer.Create("E2_AC_SaveVariable", 0.6, 1, function()
+			timer.Create("E2_AC_SaveVariable", 1, 0.6, function()
 				if self and self.AC_SaveVariables then
 					self:AC_SaveVariables()
 				end

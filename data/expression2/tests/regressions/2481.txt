@@ -1,4 +1,0 @@
-## SHOULD_FAIL:EXECUTE
-
-local Dead = 1
-error("failure")

@@ -1,4 +1,0 @@
-## SHOULD_PASS:COMPILE
-
-const Var = 5
-const Xyz = "test"

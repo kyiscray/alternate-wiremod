@@ -185,17 +185,10 @@ E2Helper.Descriptions["sunDirection()"] = "Returns the vector direction that poi
 E2Helper.Descriptions["type(e:)"] = "Gets the class of an entity"
 E2Helper.Descriptions["model(e:)"] = "Gets the model of an entity"
 E2Helper.Descriptions["keyvalues(e:)"] = "Returns the keyvalue table of an entity"
-E2Helper.Descriptions["getEditData(e:)"] = "Returns a look-up table of editable values on an editable entity"
-E2Helper.Descriptions["getEditProperty(e:s)"] = "Returns a string encoding of the editable property"
-E2Helper.Descriptions["setEditProperty(e:ss)"] = "Sets an editable property to the string-encoded value. Returns 1 if it succeeded"
-E2Helper.Descriptions["isEditable(e:)"] = "Returns 1 if the entity has editable properties"
 E2Helper.Descriptions["owner(e:)"] = "Gets the owner of an entity"
 E2Helper.Descriptions["name(e:)"] = "Gets the name of a player"
 E2Helper.Descriptions["steamID(e:)"] = "Gets the steam ID of the player"
-E2Helper.Descriptions["steamID64(e:)"] = "Gets the Steam Community ID (aka Steam64) of the player"
-E2Helper.Descriptions["accountID(e:)"] = "Gets the account ID of the player. This is the significant portion of the Steam3 ID. Note that this is not guaranteed to be unique."
-E2Helper.Descriptions["userID(e:)"] = "Gets the user ID/index of the player. This is used in player(userID)"
-E2Helper.Descriptions["player(n)"] = "Gets the player with the specified user ID. See entity:userID()"
+E2Helper.Descriptions["steamID64(e:)"] = "Gets the Steam Community ID (aka Steam64) of the given player"
 E2Helper.Descriptions["isSteamFriend(e:e)"] = "Returns if the given Entity is a steam friend of the first Entity"
 E2Helper.Descriptions["steamFriends(e:)"] = "Returns a Array with E's steam friends on the server E is playing on"
 E2Helper.Descriptions["pos(e:)"] = "Gets the position of the entity"
@@ -221,8 +214,6 @@ E2Helper.Descriptions["teamFrags(n)"] = "Returns the number of kills of the team
 E2Helper.Descriptions["teamFrags(n:)"] = "Returns the number of kills of the team associated with the team number"
 E2Helper.Descriptions["teamPlayers(n)"] = "Returns the number of players of the team associated with the team number"
 E2Helper.Descriptions["teamPlayers(n:)"] = "Returns the number of players of the team associated with the team number"
-E2Helper.Descriptions["teamMembers(n)"] = "Returns an array of players in the team associated with the team number"
-E2Helper.Descriptions["teamMemberCount(n)"] = "Returns the number of players of the team associated with the team number"
 E2Helper.Descriptions["teamScore(n)"] = "Returns the score of the team associated with the team number"
 E2Helper.Descriptions["teamScore(n:)"] = "Returns the score of the team associated with the team number"
 E2Helper.Descriptions["teams()"] = "Returns an array of all teams"
@@ -284,7 +275,6 @@ E2Helper.Descriptions["isWorld(e:)"] = "Is the entity the world?"
 E2Helper.Descriptions["isOnGround(e:)"] = "Is the player/NPC resting on something?"
 E2Helper.Descriptions["isUnderWater(e:)"] = "Is the entity under water?"
 E2Helper.Descriptions["isPlayerHolding(e:)"] = "Is the entity being held by a player?"
-E2Helper.Descriptions["getUserGroup(e:)"] = "Get the usergroup of the provided player"
 E2Helper.Descriptions["isAdmin(e:)"] = "Is the player an admin?"
 E2Helper.Descriptions["isSuperAdmin(e:)"] = "Is the player a super admin?"
 E2Helper.Descriptions["isAlive(e:)"] = "Is the player or NPC alive?"
@@ -324,21 +314,6 @@ E2Helper.Descriptions["weapon(e:)"] = "Returns the weapon that player E is curre
 E2Helper.Descriptions["weapons(e:)"] = "Returns the weapons that player E has"
 E2Helper.Descriptions["clip1(e:)"] = "Returns the amount of ammo in the primary clip of weapon E, -1 if there is no primary clip"
 E2Helper.Descriptions["clip2(e:)"] = "Returns the amount of ammo in the secondary clip of weapon E, -1 if there is no secondary clip 1)"
-E2Helper.Descriptions["hasWeapon(e:s)"] = "Returns 1 if player E has a weapon with class S, 0 otherwise"
-E2Helper.Descriptions["clip1Size(e:)"] = "Returns the maximum size of the primary clip"
-E2Helper.Descriptions["setClip1(e:n)"] = "Sets the amount of ammo in the primary clip of weapon E. Requires wire_expression2_weapon_ammo_set_enable to be set to 1."
-E2Helper.Descriptions["clip2Size(e:)"] = "Returns the maximum size of the secondary clip"
-E2Helper.Descriptions["setClip2(e:n)"] = "Sets the amount of ammo in the secondary clip of weapon E. Requires wire_expression2_weapon_ammo_set_enable to be set to 1."
-E2Helper.Descriptions["giveWeapon(e:s)"] = "Gives player E the weapon with class S. Requires wire_expression2_weapon_give_enable to be set to 1."
-E2Helper.Descriptions["giveWeapon(e:sn)"] = "Gives player E the weapon with class S. If N is not 0, the weapon will be given with full ammo. Requires wire_expression2_weapon_give_enable to be set to 1."
-E2Helper.Descriptions["selectWeapon(e:s)"] = "Sets the active weapon with class S on player E"
-E2Helper.Descriptions["giveAmmo(e:ns)"] = "Gives the player E N amount of ammo of type S. Requires wire_expression2_weapon_ammo_give_enable to be set to 1."
-E2Helper.Descriptions["giveAmmo(e:nsn)"] = "Gives the player E N amount of ammo of type S. If N is not 0, the pop-up will not appear. Requires wire_expression2_weapon_ammo_give_enable to be set to 1."
-E2Helper.Descriptions["setAmmo(e:ns)"] = "Sets the amount of ammo of type S on player E to N. Requires wire_expression2_weapon_ammo_set_enable to be set to 1."
-E2Helper.Descriptions["removeAmmo(e:ns)"] = "Removes N amount ammo of type S from player E. Requires wire_expression2_weapon_ammo_set_enable to be set to 1."
-E2Helper.Descriptions["removeAllAmmo(e:)"] = "Removes all ammo from the player E. Requires wire_expression2_weapon_ammo_set_enable to be set to 1."
-E2Helper.Descriptions["stripWeapon(e:s)"] = "Removes the weapon with class S from player E. Requires wire_expression2_weapon_strip_enable to be set to 1."
-E2Helper.Descriptions["stripWeapons(e:)"] = "Removes all weapons from player E. Requires wire_expression2_weapon_strip_enable to be set to 1."
 E2Helper.Descriptions["primaryAmmoType(e:)"] = "Returns the name of the primary weapon's ammo"
 E2Helper.Descriptions["secondaryAmmoType(e:)"] = "Returns the name of the secondary weapon's ammo"
 E2Helper.Descriptions["ammoCount(e:s)"] = "Returns the amount of stored ammo of type S on player E, excluding current clip"
@@ -367,13 +342,6 @@ E2Helper.Descriptions["playerConnectClk()"] = "Returns 1 if the chip is being ex
 E2Helper.Descriptions["lastConnectedPlayer()"] = "Returns the last player to connect."
 E2Helper.Descriptions["runOnPlayerConnect(n)"] = "If set to 0, the chip will no longer run on player connect events, otherwise it makes this chip execute when someone connects. Only needs to be called once, not in every execution"
 E2Helper.Descriptions["inGodMode(e:)"] = "Returns whether the player has god mode or not"
-E2Helper.Descriptions["ignite(e:)"] = "Ignites an entity for 360 seconds (same as C menu). Requires wire_expression2_entity_ignite_enabled"
-E2Helper.Descriptions["ignite(e:n)"] = "Ignites an entity for the given length in seconds. Requires wire_expression2_entity_ignite_enabled"
-E2Helper.Descriptions["ignite(e:nn)"] = "Creates a fire at an entity with given radius and length in seconds. Requires wire_expression2_entity_ignite_enabled"
-E2Helper.Descriptions["extinguish(e:)"] = "Extinguishes an entity granted you have permission. Does not work inside of entityDamage event if the attacker is the fire itself"
-E2Helper.Descriptions["getCollisionGroup(e:)"] = "Returns the collision group of the entity"
-E2Helper.Descriptions["setCollisionGroup(e:n)"] = "Sets the collision group of the entity. Does not work on players. Use one of the _COLLISION_GROUP constants"
-E2Helper.Descriptions["noCollideAll"] = "Nocollides an entity to all entities/players, just like the tool's right-click"
 
 -- Attachment
 E2Helper.Descriptions["lookupAttachment(e:s)"] = "Returns Es attachment ID associated with attachmentName"
@@ -542,7 +510,6 @@ E2Helper.Descriptions["pointContentsArray(v)"] = "Returns an array with all the 
 E2Helper.Descriptions["pointHasContent(vs)"] = "'S' can be a string containing the last half of the CONTENTS_ enums (ie without the \"CONTENTS_\"). Multiple CONTENTS types can be seperated by a comma. Check: Enumeration_List:Contents for a full list. Examples: \"water,solid\" or \"empty,transparent\". The function returns 1 if any one of the types are found in the vector point"
 E2Helper.Descriptions["bezier(xv2xv2xv2n)"] = "Returns the 2D position on the bezier curve between the starting and ending 2D vector, given by the ratio (value between 0 and 1)"
 E2Helper.Descriptions["bezier(vvvn)"] = "Returns the 3D vector position on the bezier curve between the starting and ending 3D vector, given by the ratio (value between 0 and 1)"
-E2Helper.Descriptions["bezier(vvvvn)"] = "Returns the 3D vector position on the bezier curve between the starting and ending 3D vector, given by the ratio (value between 0 and 1)"
 
 -- Matrix
 E2Helper.Descriptions["identity2()"] = "Creates a 2x2 identity matrix"
@@ -1238,7 +1205,6 @@ E2Helper.Descriptions["holoClip(nvve)"] = "Defines a plane used to clip a hologr
 E2Helper.Descriptions["holoClipEnabled(nn)"] = "Enables / disables clipping for a hologram with specified index"
 E2Helper.Descriptions["holoClipEnabled(nnn)"] = "Enables / disables clipping for a hologram with specified index. Clip index is for use with multiple clipping planes"
 E2Helper.Descriptions["holoClipsAvailable()"] = "Returns the maximum number of clipping planes allowed per hologram"
-E2Helper.Descriptions["holoInvertModel(nn)"] = "If not 0, inverts the model of the hologram"
 E2Helper.Descriptions["holoRenderFX(nn)"] = "Changes the RenderFX for a hologram"
 E2Helper.Descriptions["holoSkin(nn)"] = "Changes the skin of a hologram"
 
@@ -1299,10 +1265,6 @@ E2Helper.Descriptions["gGetShare()"] = "Returns 1/0"
 E2Helper.Descriptions["gResetGroup()"] = "Resets the group back to \"default\""
 E2Helper.Descriptions["gShare(n)"] = "Sets wether or not you want to share the variables. (1/0) Remember that there are two tables for each group: one which is shared and one which is not; values do not transition between the two"
 E2Helper.Descriptions["toTable(xgt:)"] = "Converts the GTable into a table"
-
--- remote
-E2Helper.Descriptions["sendRemoteEvent(e:t)"] = "Sends a payload to an E2 chip via the 'remote' event. Note if you do this, they will have access to modify your table in any way they please."
-E2Helper.Descriptions["broadcastRemoteEvent(t)"] = "Sends a payload to all E2 chips via the 'remote' event. Note if you do this, they will have access to modify your table in any way they please."
 
 -- tables
 E2Helper.Descriptions["table"] = "Returns a table with the values specified in the array-part"
@@ -1376,9 +1338,6 @@ E2Helper.Descriptions["shift(r:)"] = "Removes the first element of the array; al
 E2Helper.Descriptions["remove(r:n)"] = "Removes the specified entry, moving subsequent entries down to compensate and returns 1 if removed"
 E2Helper.Descriptions["unset(r:n)"] = "Force removes the specified entry, without moving subsequent entries down and returns 1 if removed"
 
-E2Helper.Descriptions["toString(r)"] = "Returns a string representation of the array and its contents for debugging purposes. Return format may change in the future and should not be relied on."
-E2Helper.Descriptions["toString(r:)"] = "Returns a string representation of the array and its contents for debugging purposes. Return format may change in the future and should not be relied on."
-
 -- binary
 E2Helper.Descriptions["bOr(nn)"] = "Performs bitwise OR against the two numbers"
 E2Helper.Descriptions["bAnd(nn)"] = "Performs bitwise AND against the two numbers"
@@ -1448,7 +1407,6 @@ E2Helper.Descriptions["egpCanSendUmsg()"] = "Returns 1 if you can send an userme
 E2Helper.Descriptions["egpClear(xwl:)"] = "Clears the EGP screen"
 E2Helper.Descriptions["egpClearQueue()"] = "Clears your entire queue"
 E2Helper.Descriptions["egpCopy(xwl:nn)"] = "Copies the settings of the second object into the first. If the first object does not exist, it's created"
-E2Helper.Descriptions["egpConnectedUsers(xwl:)"] = "Returns an array of players connected to the EGP"
 E2Helper.Descriptions["egpCursor(xwl:e)"] = "Returns the specified player's aim position on the screen"
 E2Helper.Descriptions["egpDrawTopLeft(xwl:n)"] = "Set to 1 to make boxes, outline boxes, rounded boxes, and rounded outline boxes draw from the top left corner instead of from the center"
 E2Helper.Descriptions["egpGlobalPos(xwl:n)"] = "Returns the \"global\" (= it takes the parents' positions into consideration) position as a 3D vector. X and Y being the 2D X,Y coordinates, while Z is the angle"
@@ -1456,7 +1414,6 @@ E2Helper.Descriptions["egpGlobalVertices(xwl:n)"] = "Returns an array of 2D vect
 E2Helper.Descriptions["egpGlobalFiltering(xwl:n)"] = "Changes the texture filter used to draw all EGP Objects. Works only on EGP Screens. See _TEXFILTER constants (POINT=sharp, ANISOTROPIC=blurry/default)"
 E2Helper.Descriptions["egpHasObject(xwl:n)"] = "Returns 1 if the object with specified index exists on the screen, 0 if not"
 E2Helper.Descriptions["egpObjectContainsPoint(xwl:nxv2)"] = "Returns 1 if the object with specified index contains the specified point"
-E2Helper.Descriptions["egpHudEnable(xwl:n)"] = "Enables the HUD if the input is not 0"
 E2Helper.Descriptions["egpHudToggle(xwl:)"] = "Toggles the HUD on/off"
 E2Helper.Descriptions["egpLoadFrame(xwl:n)"] = "Loads the frame with specified index"
 E2Helper.Descriptions["egpLoadFrame(xwl:s)"] = "Loads the frame with specified name"
@@ -1552,29 +1509,6 @@ E2Helper.Descriptions["soundVolume(snn)"] = "soundVolume(string Index, Volume, F
 E2Helper.Descriptions["soundVolume(sn)"] = "soundVolume(string Index, Volume), where Volume is a number between 0 and 1. Default Volume is 1"
 E2Helper.Descriptions["soundVolume(nn)"] = "soundVolume(integer Index, Volume), where Volume is a number between 0 and 1. Default Volume is 1"
 E2Helper.Descriptions["soundVolume(nnn)"] = "soundVolume(integer Index, Volume, FadeTime), where Volume is a number between 0 and 1. Default Volume is 1"
-E2Helper.Descriptions["soundDSP(nn)"] = "Sets the DSP effect for the sound at the index, then restarts the sound"
-E2Helper.Descriptions["soundDSP(sn)"] = "Sets the DSP effect for the sound at the index, then restarts the sound"
-E2Helper.Descriptions["soundLevel(nn)"] = "Sets the sound's level in dB, then restarts the sound. This affects how far away the sound can be heard."
-E2Helper.Descriptions["soundLevel(sn)"] = "Sets the sound's level in dB, then restarts the sound. This affects how far away the sound can be heard."
-E2Helper.Descriptions["soundDSP(n)"] = "Returns the DSP effect for the sound at the index (default 0)"
-E2Helper.Descriptions["soundDSP(s)"] = "Returns the DSP effect for the sound at the index (default 0)"
-E2Helper.Descriptions["soundLevel(n)"] = "Returns the sound level in dB for the sound at the index"
-E2Helper.Descriptions["soundLevel(s)"] = "Returns the sound level in dB for the sound at the index"
-E2Helper.Descriptions["soundPitch(n)"] = "Returns the pitch of the sound at the index"
-E2Helper.Descriptions["soundPitch(s)"] = "Returns the pitch of the sound at the index"
-E2Helper.Descriptions["soundVolume(n)"] = "Returns the volume of the sound at the index"
-E2Helper.Descriptions["soundVolume(s)"] = "Returns the volume of the sound at the index"
-E2Helper.Descriptions["soundPlaying(n)"] = "Returns 1 if the sound at the index is playing, 0 if not"
-E2Helper.Descriptions["soundPlaying(s)"] = "Returns 1 if the sound at the index is playing, 0 if not"
-
-do
-	local EmitSoundDoc = "Plays sound on entity. Note that one file can only be played once in a time."
-	E2Helper.Descriptions["emitSound(e:s)"] = EmitSoundDoc
-	E2Helper.Descriptions["emitSound(e:sn)"] = EmitSoundDoc
-	E2Helper.Descriptions["emitSound(e:snn)"] = EmitSoundDoc
-	E2Helper.Descriptions["emitSound(e:snnn)"] = EmitSoundDoc
-end
-E2Helper.Descriptions["emitSoundStop(e:s)"] = "Stops sound played with 'emitSound'"
 
 -- UTF-8
 E2Helper.Descriptions["toUnicodeChar(...)"] = "Returns the UTF-8 string from the given Unicode code-points"
@@ -1582,7 +1516,7 @@ E2Helper.Descriptions["toUnicodeChar(r)"] = "Returns the UTF-8 string from the g
 E2Helper.Descriptions["toUnicodeByte(s:nn)"] = "Returns the Unicode code-points from the given UTF-8 string"
 E2Helper.Descriptions["unicodeLength(s:nn)"] = "Returns the length of the given UTF-8 string"
 
--- Deaths / Spawns
+-- Damage
 E2Helper.Descriptions["runOnDeath(n)"] = "If set to 0, chip won't run on players dying"
 E2Helper.Descriptions["deathClk()"] = "Returns if the E2 was triggered by a death"
 E2Helper.Descriptions["lastDeathTime()"] = "Returns the last time a player died"
@@ -1611,35 +1545,23 @@ E2Helper.Descriptions["setEntIndex(xef:n)"] = "Sets the entity of the effect via
 E2Helper.Descriptions["setEntity(xef:e)"] = "Sets the entity of the effect"
 E2Helper.Descriptions["setFlags(xef:n)"] = "Sets the flags of the effect"
 E2Helper.Descriptions["setHitBox(xef:n)"] = "Sets the hit box index of the effect"
-E2Helper.Descriptions["setMagnitude(xef:n)"] = "Sets the magnitude of the effect, Magnitude is the amount of particles you will be emitting."
+E2Helper.Descriptions["setMagnitude(xef:n)"] = "Sets the magnitude of the effect"
 E2Helper.Descriptions["setMaterialIndex(xef:n)"] = "Sets the material index of the effect"
-E2Helper.Descriptions["setNormal(xef:v)"] = "Sets the normalized direction vector of the effect, aka direction."
+E2Helper.Descriptions["setNormal(xef:v)"] = "Sets the normalized direction vector of the effect"
 E2Helper.Descriptions["setOrigin(xef:v)"] = "Sets the origin of the effect"
-E2Helper.Descriptions["setRadius(xef:n)"] = "Sets the radius aka size of the effect"
-E2Helper.Descriptions["setScale(xef:n)"] = "Sets the scale of the effect, scale is the thickness of your effect."
+E2Helper.Descriptions["setRadius(xef:n)"] = "Sets the radius of the effect"
+E2Helper.Descriptions["setScale(xef:n)"] = "Sets the scale of the effect"
 E2Helper.Descriptions["setStart(xef:v)"] = "Sets the start of the effect"
 E2Helper.Descriptions["setSurfaceProp(xef:n)"] = "Sets the surface property index of the effect"
 E2Helper.Descriptions["effectCanPlay()"] = "Returns whether you can play an effect (or 0 if you've hit the burst limit)"
 E2Helper.Descriptions["effectCanPlay(s)"] = "Same as effectCanPlay(), but also checks if the specific effect is not allowed"
 
--- Interpolations
+--Interpolations
 
-for _, v in ipairs {"OutElastic","OutCirc","InOutQuint","InCubic","InOutCubic","InOutBounce","InOutSine","OutQuad","InOutCirc","InElastic","OutBack","InQuint","InSine","InBounce","InQuart","OutSine","OutExpo","InOutExpo","InQuad","InOutElastic","InOutQuart","InExpo","OutCubic","OutQuint","OutBounce","InCirc","InBack","InOutQuad","OutQuart","InOutBack"} do
-	E2Helper.Descriptions["ease" .. v .. "(n)"] = "Performs " .. v .. " interpolation on the argument. You can see how all of these interpolation functions look here: https://imgur.com/XZPgymK"
+local from_easings = {"OutElastic","OutCirc","InOutQuint","InCubic","InOutCubic","InOutBounce","InOutSine","OutQuad","InOutCirc","InElastic","OutBack","InQuint","InSine","InBounce","InQuart","OutSine","OutExpo","InOutExpo","InQuad","InOutElastic","InOutQuart","InExpo","OutCubic","OutQuint","OutBounce","InCirc","InBack","InOutQuad","OutQuart","InOutBack"}
+
+for k, v in pairs(from_easings) do
+	local name = "ease" .. v
+	
+	E2Helper.Descriptions[name .. "(n)"] = "Performs " .. v .. " interpolation on the argument. You can see how all of these interpolation functions look here: https://imgur.com/XZPgymK"
 end
-
--- Damage
-
-E2Helper.Descriptions["isType(xdm:n)"] = "Returns whether the damage contains the type flag provided. For example isType(_DMG_BLAST) would return 1 if the damage contains blast damage."
-E2Helper.Descriptions["getAmount(xdm:)"] = "Returns the amount of damage dealt"
-E2Helper.Descriptions["getPosition(xdm:)"] = "Returns the position where the damage was dealt"
-E2Helper.Descriptions["getForce(xdm:)"] = "Returns the force of the damage dealt"
-E2Helper.Descriptions["getInflictor(xdm:)"] = "Returns the inflictor (weapon) which caused the damage to be dealt"
-E2Helper.Descriptions["getAttacker(xdm:)"] = "Returns the attacker which used the inflictor to deal the damage"
-E2Helper.Descriptions["getAmmoType(xdm:)"] = "Returns the ammo type id of the damage dealt"
-
-E2Helper.Descriptions["takeDamage(e:n)"] = "Applies an amount of damage to the player. Requires wire_expression2_damage_enabled to be set to 1."
-E2Helper.Descriptions["takeDamage(e:ne)"] = "Applies an amount of damage to the player with given attacker. Requires wire_expression2_damage_enabled to be set to 1."
-E2Helper.Descriptions["takeDamage(e:nee)"] = "Applies an amount of damage to the player with given attacker and inflictor. Requires wire_expression2_damage_enabled to be set to 1."
-
-E2Helper.Descriptions["blastDamage(vnn)"] = "Creates blast damage at the position provided with specified radius and damage amount. Requires wire_expression2_damage_enabled to be set to 1."

@@ -22,24 +22,24 @@ local function AddCPUDesc(FuncName, Args, Desc, Platform, Type)
 	E2Helper.CPUDescriptions[FuncName] = Desc
 end
 
-if CPULib then
-	-- Add help on all opcodes
-	for _, instruction in ipairs(CPULib.InstructionTable) do
-		if (instruction.Mnemonic ~= "RESERVED") and
+-- Add help on all opcodes
+for _, instruction in ipairs(CPULib.InstructionTable) do
+	if (instruction.Mnemonic ~= "RESERVED") and
 			(not instruction.Obsolete) then
-			local instructionArgs = instruction.Operand1
-			if instruction.Operand2 ~= "" then
-				instructionArgs = instructionArgs .. ", " .. instruction.Operand2
-			end
 
-			AddCPUDesc(instruction.Mnemonic,
-				instructionArgs,
-				instruction.Reference,
-				instruction.Set,
-				instruction.Opcode)
+		local instructionArgs = instruction.Operand1
+		if instruction.Operand2 ~= "" then
+			instructionArgs = instructionArgs .. ", " .. instruction.Operand2
 		end
+
+		AddCPUDesc(instruction.Mnemonic,
+			instructionArgs,
+			instruction.Reference,
+			instruction.Set,
+			instruction.Opcode)
 	end
 end
+
 
 -- Which tables are we going to use?
 local function CurrentDescs()

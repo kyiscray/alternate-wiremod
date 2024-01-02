@@ -1,5 +1,0 @@
-## SHOULD_PASS:COMPILE
-
-@inputs Test#comment1
-@outputs Output#comment2
-@persist Persist#comment3

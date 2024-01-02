@@ -1,4 +1,0 @@
-## SHOULD_PASS:COMPILE
-
-event tick() {}
-event chat(_:entity, _:string, _) {}

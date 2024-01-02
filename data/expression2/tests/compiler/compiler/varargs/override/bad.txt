@@ -1,4 +1,0 @@
-## SHOULD_FAIL:COMPILE
-
-# Can't override existing function with variadic
-function print(...A:array) {}

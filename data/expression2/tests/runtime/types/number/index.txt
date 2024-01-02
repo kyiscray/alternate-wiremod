@@ -1,5 +1,0 @@
-## SHOULD_PASS:EXECUTE
-
-local X = nowirelink()
-
-assert(X:number("Foo") == X["Foo", number])

@@ -1,3 +1,0 @@
-## SHOULD_FAIL:COMPILE
-
-#error Hello, world!

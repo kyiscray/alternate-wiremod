@@ -1,3 +1,0 @@
-## SHOULD_PASS:EXECUTE
-
-assert(select(3, 1, 2, 3, 4) == 3)

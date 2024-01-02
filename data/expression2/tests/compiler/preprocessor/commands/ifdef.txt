@@ -1,6 +1,0 @@
-## SHOULD_PASS:COMPILE
-
-#ifdef print(...)
-#else
-	#error Uhh
-#endif

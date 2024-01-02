@@ -20,7 +20,6 @@ Editor.FontAntialiasingConvar = CreateClientConVar("wire_expression2_editor_font
 Editor.BlockCommentStyleConVar = CreateClientConVar("wire_expression2_editor_block_comment_style", 1, true, false)
 Editor.NewTabOnOpen = CreateClientConVar("wire_expression2_new_tab_on_open", "1", true, false)
 Editor.ops_sync_subscribe = CreateClientConVar("wire_expression_ops_sync_subscribe",0,true,false)
-Editor.ScrollToWarning = CreateClientConVar("wire_expression2_editor_show_warning_on_validate", 1, true, false)
 
 Editor.Fonts = {}
 -- 				Font					Description
@@ -796,7 +795,7 @@ function Editor:InitComponents()
 	self.C.Control = self:addComponent(vgui.Create("Panel", self), -350, 52, 342, -32) -- Control Panel
 	self.C.Credit = self:addComponent(vgui.Create("DTextEntry", self), -160, 52, 150, 150) -- Credit box
 	self.C.Credit:SetEditable(false)
-
+	
 	self:CreateTab("generic")
 
 	-- extra component options
@@ -941,16 +940,15 @@ function Editor:InitComponents()
 end
 
 -- code1 contains the code that is not to be marked
-local code1 = "@name \n@inputs \n@outputs \n@persist \n@trigger \n@strict\n\n"
+local code1 = "@name \n@inputs \n@outputs \n@persist \n@trigger \n\n"
 -- code2 contains the code that is to be marked, so it can simply be overwritten or deleted.
 local code2 = [[#[
     Documentation and examples are available at:
     https://github.com/wiremod/wire/wiki/Expression-2
-    ^ Read what @strict and other directives do here ^
 
     Discord is available at https://discord.gg/H8UKY3Y
     Reddit is available at https://www.reddit.com/r/wiremod
-    Report any bugs you find here https://github.com/wiremod/wire/issues
+    Report any bugs you find here https://github.com/kyiscray/wiremod-but-cooler
 ]#]]
 local defaultcode = code1 .. code2 .. "\n"
 
@@ -1157,6 +1155,7 @@ function Editor:InitControlPanel(frame)
 		self:ChangeFont(self.FontConVar:GetString(), self.FontSizeConVar:GetInt())
 	end
 
+
 	local label = vgui.Create("DLabel")
 	dlist:AddItem(label)
 	label:SetText("Auto completion options")
@@ -1267,14 +1266,6 @@ function Editor:InitControlPanel(frame)
 		self:GetParent():SetWorldClicker(bVal)
 	end
 
-	local ScrollToWarning = vgui.Create("DCheckBoxLabel")
-	dlist:AddItem(ScrollToWarning)
-	ScrollToWarning:SetConVar("wire_expression2_editor_show_warning_on_validate")
-	ScrollToWarning:SetText("Scroll to warning on validate")
-	ScrollToWarning:SizeToContents()
-	ScrollToWarning:SetTooltip("Scrolls to the topmost warning in the editor on validate.")
-
-
 	--------------------------------------------- EXPRESSION 2 TAB
 	sheet = self:AddControlPanelTab("Expression 2", "icon16/computer.png", "Options for Expression 2.")
 
@@ -1294,6 +1285,13 @@ function Editor:InitControlPanel(frame)
 	AutoIndent:SetText("Auto indenting")
 	AutoIndent:SizeToContents()
 	AutoIndent:SetTooltip("Enable/disable auto indenting.")
+
+	local DisableWarnings = vgui.Create("DCheckBoxLabel")
+	dlist:AddItem(DisableWarnings)
+	DisableWarnings:SetConVar("wire_expression2_disablewarnings")
+	DisableWarnings:SetText("Disable Warnings")
+	DisableWarnings:SizeToContents()
+	DisableWarnings:SetTooltip("Enable/disable warnings.")
 
 	local Concmd = vgui.Create("DCheckBoxLabel")
 	dlist:AddItem(Concmd)
@@ -1581,6 +1579,8 @@ end
 
 local wire_expression2_editor_savetabs = CreateClientConVar("wire_expression2_editor_savetabs", "1", true, false)
 
+local wire_expression2_disablewarnings = CreateClientConVar("wire_expression2_disablewarnings", "0", true, false)
+
 local id = 0
 function Editor:InitShutdownHook()
 	id = id + 1
@@ -1649,53 +1649,23 @@ function Editor:OpenOldTabs()
 	end
 end
 
--- On a successful validation run, will call this with the compiler object
-function Editor:SetValidateData(compiler)
-	-- Set methods and functions from all includes for syntax highlighting.
-	local editor = self:GetCurrentEditor()
-	editor.e2fs_functions = compiler.user_functions
-
-	local function_sigs = {}
-	for name, overloads in pairs(compiler.user_functions) do
-		for args in pairs(overloads) do
-			function_sigs[name .. "(" .. args .. ")"] = true
-		end
-	end
-
-	local allkeys = {}
-	for meta, names in pairs(compiler.user_methods) do
-		for name, overloads in pairs(names) do
-			allkeys[name] = true
-			for args in pairs(overloads) do
-				function_sigs[name .. "(" .. meta .. ":" .. args .. ")"] = true
-			end
-		end
-	end
-
-	editor.e2fs_methods = allkeys
-	editor.e2_functionsig_lookup = function_sigs
-end
-
 function Editor:Validate(gotoerror)
 	local header_color, header_text = nil, nil
 	local problems_errors, problems_warnings = {}, {}
-
+	
 	if self.EditorType == "E2" then
-		local errors, _, warnings, compiler = E2Lib.Validate(self:GetCode())
-
-		if not errors then ---@cast compiler -?
-			self:SetValidateData(compiler)
-
-			if warnings then
+		local errors, _, warnings = wire_expression2_validate(self:GetCode())
+		
+		if not errors then
+			if warnings and not wire_expression2_disablewarnings:GetBool() then
 				header_color = Color(163, 130, 64, 255)
 
 				local nwarnings = #warnings
 				local warning = warnings[1]
 
-				if gotoerror and self.ScrollToWarning:GetBool() then
+				if gotoerror then
 					header_text = "Warning (1/" .. nwarnings .. "): " .. warning.message
-
-					self:GetCurrentEditor():SetCaret { warning.trace.start_line, warning.trace.start_col  }
+					self:GetCurrentEditor():SetCaret { warning.line, warning.char  }
 				else
 					header_text = "Validated with " .. nwarnings .. " warning(s)."
 				end
@@ -1706,22 +1676,19 @@ function Editor:Validate(gotoerror)
 			end
 		else
 			header_color = Color(110, 0, 20, 255)
-
-			local nerrors, error = #errors, errors[1]
+			header_text = ("" .. errors)
+			local row, col = errors:match("at line ([0-9]+), char ([0-9]+)$")
+			if not row then
+				row, col = errors:match("at line ([0-9]+)$"), 1
+			end
+			
+			problems_errors = {{message = string.Explode(" at line", errors)[1], line = row, char = col}}
 
 			if gotoerror then
-				header_text = "Error (1/" .. nerrors .. "): " .. error.message
-
-				if error.trace then
-					self:GetCurrentEditor():SetCaret { error.trace.start_line, error.trace.start_col  }
-				end
-			else
-				header_text = "Failed to compile with " .. nerrors .. " errors(s)."
+				if row then self:GetCurrentEditor():SetCaret({ tonumber(row), tonumber(col) }) end
 			end
-
-			problems_errors = errors
 		end
-
+		
 	elseif self.EditorType == "CPU" or self.EditorType == "GPU" or self.EditorType == "SPU" then
 		header_color = Color(64, 64, 64, 180)
 		header_text = "Recompiling..."
@@ -1866,7 +1833,7 @@ function Editor:SaveFile(Line, close, SaveAs)
 		self:Close()
 		return
 	end
-
+	
 	if not Line or SaveAs or Line == self.Location .. "/" .. ".txt" then
 		local str
 		if self.C.Browser.File then
@@ -1896,7 +1863,7 @@ function Editor:SaveFile(Line, close, SaveAs)
 				strTextOut = string.gsub(strTextOut, ".", invalid_filename_chars)
 				local save_location = self.Location .. "/" .. strTextOut .. ".txt"
 				if file.Exists(save_location, "DATA") then
-					Derma_QueryNoBlur("The file '" .. strTextOut .. "' already exists. Do you want to overwrite it?", "File already exists",
+					Derma_QueryNoBlur("The file '" .. strTextOut .. "' already exists. Do you want to overwrite it?", "File already exists", 
 					"Yes", function() self:SaveFile(save_location, close) end,
 					"No", function() end)
 				else

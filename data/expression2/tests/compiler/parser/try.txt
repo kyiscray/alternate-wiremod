@@ -1,7 +1,0 @@
-## SHOULD_PASS:COMPILE
-
-try {} catch (E) {}
-try {} catch (Err:string) {}
-
-try {} catch(_) {}
-try {} catch(_:string) {}
