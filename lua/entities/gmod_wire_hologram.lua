@@ -101,9 +101,9 @@ if CLIENT then
 	end
 
 	function ENT:FinishClipping()
-		if next(self.clips) then
+		if self and self.clips next(self.clips) then
 			for _, clip in pairs(self.clips) do
-				if clip.enabled and clip.normal and clip.origin then -- same logic as in SetupClipping
+				if clip and clip.enabled and clip.normal and clip.origin then -- same logic as in SetupClipping
 					render.PopCustomClipPlane()
 				end
 			end
